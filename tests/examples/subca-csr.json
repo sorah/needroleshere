@@ -1,0 +1,4 @@
+{
+  "CN": "rolesanywhere test CA - Intermediate",
+  "key": { "algo": "rsa", "size": 2048 }
+}

@@ -1,0 +1,5 @@
+{
+  "CN": "rolesanywhere test CA - Root",
+  "CA": { "expiry": "438000h" },
+  "key": { "algo": "rsa", "size": 2048 }
+}

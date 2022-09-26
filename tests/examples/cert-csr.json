@@ -1,0 +1,5 @@
+{
+  "CN": "leaf.test.invalid",
+  "hosts": ["leaf.test.invalid"],
+  "key": { "algo": "rsa", "size": 2048 }
+}
