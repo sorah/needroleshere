@@ -11,7 +11,8 @@ axum = "0.5.16"
 base16ct = { version = "0.1.1", features = ["alloc"]}
 base64ct = { version = "1.5.2", features = ["alloc"]}
 bytes = "1.2.1"
-chrono = "0.4.22"
+chrono = { version = "0.4.22", features = ["serde"] }
+clap = { version = "3.2.22", features = ["cargo", "env", "derive"] }
 crypto-bigint = { version = "0.4.8", features = ["generic-array"] }
 ecdsa = { version = "0.14.7", features = ["std", "digest", "sign", "verify", "pkcs8", "pem", "hazmat"] }
 elliptic-curve = { version = "0.12.3", features = ["arithmetic", "pem", "alloc", "std", "sec1", "hazmat"] }
@@ -27,7 +28,7 @@ pkcs1 = { version = "0.4.0", features = ["alloc", "std", "pem", "pkcs8"] }
 pkcs8 = { version = "0.9.0", features = ["alloc", "std", "pem"]}
 rand = "0.8.5"
 regex = "1.6.0"
-reqwest = "0.11.12"
+reqwest = { version = "0.11.12", features = ["json"] }
 rfc6979 = "0.3.0"
 rsa = { version = "0.6.1", features = ["std", "pem"] }
 sec1 = { version = "0.3.0", features = ["alloc", "std", "pem", "pkcs8"] }
@@ -35,9 +36,9 @@ serde = { version = "1.0.145", features = ["derive"] }
 serde_json = "1.0.85"
 sha2 = "0.10.6"
 thiserror = "1.0.36"
-tokio = { version = "1.21.1", features = ["net", "macros", "rt-multi-thread"] }
+tokio = { version = "1.21.1", features = ["net", "macros", "rt-multi-thread", "fs"] }
 tracing = "0.1.36"
-tracing-subscriber = "0.3.15"
+tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }
 x509-cert = { version = "0.1.0", features = ["alloc", "pem", "std"] }
 zeroize = "1.5.7"
 

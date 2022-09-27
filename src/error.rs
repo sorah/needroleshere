@@ -3,6 +3,9 @@ pub enum Error {
     #[error("{0}")]
     Unknown(String),
 
+    #[error("Config error: {0}")]
+    ConfigError(String),
+
     #[error("Unsupported key pem label: {0}")]
     UnsupportedKeyError(String),
 
@@ -14,6 +17,9 @@ pub enum Error {
 
     #[error("Unsupported certificate error; other reason: {0}")]
     UnsupportedCertificateError(String),
+
+    #[error(transparent)]
+    StdIoError(#[from] std::io::Error),
 
     #[error(transparent)]
     PemError(#[from] pem_rfc7468::Error),
@@ -50,4 +56,13 @@ pub enum Error {
 
     #[error(transparent)]
     InvaildHeaderError(#[from] reqwest::header::InvalidHeaderName),
+
+    #[error(transparent)]
+    JsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
+
+    #[error("API Error ({0}): {1}")]
+    ApiError(reqwest::StatusCode, String),
 }

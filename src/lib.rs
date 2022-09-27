@@ -1,6 +1,9 @@
-pub mod certificate;
-pub(crate) mod ecdsa_sha256;
 pub mod error;
+
+pub mod certificate;
+pub mod client;
+pub(crate) mod ecdsa_sha256;
 pub mod identity;
-pub mod session;
 pub mod sign;
+
+pub mod cmd;
