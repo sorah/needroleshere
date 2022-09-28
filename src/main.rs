@@ -3,6 +3,14 @@
 #[clap(about = "Yet Another rolesanywhere-credential-helper")]
 #[clap(propagate_version = true)]
 struct Cli {
+    /// Base URL where a Needroleshere server is listening to
+    #[clap(long, global = true)]
+    url: Option<String>,
+
+    /// Configuration directory. Default to $RUNTIME_DIRECTORY
+    #[clap(long, global = true)]
+    configuration_directory: Option<String>,
+
     #[clap(subcommand)]
     command: Commands,
 }
@@ -11,6 +19,23 @@ struct Cli {
 enum Commands {
     /// Run as a credential_process program; Compatible with original helper
     CredentialProcess(needroleshere::cmd::credential_process::CredentialProcessArgs),
+    /// Create or update a role binding
+    Bind(needroleshere::cmd::bind::BindArgs),
+    /// Delete a role binding
+    Unbind(needroleshere::cmd::unbind::UnbindArgs),
+}
+
+impl TryInto<needroleshere::config::Config> for &Cli {
+    type Error = needroleshere::error::Error;
+
+    fn try_into(self) -> Result<needroleshere::config::Config, Self::Error> {
+        needroleshere::config::Config::new(
+            self.configuration_directory.clone().map(|v| v.into()),
+            needroleshere::config::ConfigData {
+                url: self.url.clone(),
+            },
+        )
+    }
 }
 
 fn main() -> Result<(), anyhow::Error> {
@@ -20,9 +45,17 @@ fn main() -> Result<(), anyhow::Error> {
     match &cli.command {
         Commands::CredentialProcess(params) => {
             enable_tracing(true);
-            needroleshere::cmd::credential_process::run(params)?
+            needroleshere::cmd::credential_process::run(params)?;
         }
-    }
+        Commands::Bind(params) => {
+            enable_tracing(false);
+            needroleshere::cmd::bind::run(&(&cli).try_into()?, params)?;
+        }
+        Commands::Unbind(params) => {
+            enable_tracing(false);
+            needroleshere::cmd::unbind::run(&(&cli).try_into()?, params)?;
+        }
+    };
     Ok(())
 }
 

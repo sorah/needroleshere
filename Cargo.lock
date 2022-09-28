@@ -682,6 +682,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "indoc"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adab1eaa3408fb7f0c777a73e7465fd5656136fc93b670eb6df3c88c2c1344e3"
+
+[[package]]
 name = "instant"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -810,10 +816,12 @@ dependencies = [
  "chrono",
  "clap",
  "crypto-bigint 0.4.8",
+ "digest",
  "ecdsa",
  "elliptic-curve",
  "generic-array",
  "http",
+ "indoc",
  "log",
  "num-bigint",
  "once_cell",
@@ -832,10 +840,12 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "temp-dir",
  "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "url",
  "x509-cert",
  "zeroize",
 ]
@@ -1488,6 +1498,12 @@ name = "sync_wrapper"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20518fe4a4c9acf048008599e464deb21beeae3d3578418951a189c235a7a9a8"
+
+[[package]]
+name = "temp-dir"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af547b166dd1ea4b472165569fc456cfb6818116f854690b0ff205e636523dab"
 
 [[package]]
 name = "tempfile"

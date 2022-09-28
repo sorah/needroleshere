@@ -7,6 +7,12 @@ pub async fn serve() {
         .unwrap();
 }
 
+// if let Some(l) = listenfd::ListenFd::from_env().take_tcp_listener(0)? {
+// axum::Server::from_tcp(l)?
+// } else  {
+// axum::Server::bind(&std::net::SocketAddr::from([127,0,0,1],3000))
+// }.serve(app.into_make_service()).await.unwrap();
+
 async fn healthz() -> axum::response::Result<(axum::http::StatusCode, &'static str)> {
-    return Ok((axum::http::StatusCode::OK, "ok"));
+    Ok((axum::http::StatusCode::OK, "ok"))
 }

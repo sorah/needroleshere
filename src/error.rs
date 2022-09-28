@@ -18,6 +18,9 @@ pub enum Error {
     #[error("Unsupported certificate error; other reason: {0}")]
     UnsupportedCertificateError(String),
 
+    #[error("Unauthorized")]
+    Unauthorized,
+
     #[error(transparent)]
     StdIoError(#[from] std::io::Error),
 

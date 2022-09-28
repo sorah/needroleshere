@@ -1,7 +1,7 @@
 //! rolesanywhere:CreateSession API client
 
 /// https://docs.aws.amazon.com/rolesanywhere/latest/userguide/authentication-create-session.html
-#[derive(Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateSessionRequest {
     pub duration_seconds: Option<i64>,

@@ -14,6 +14,7 @@ bytes = "1.2.1"
 chrono = { version = "0.4.22", features = ["serde"] }
 clap = { version = "3.2.22", features = ["cargo", "env", "derive"] }
 crypto-bigint = { version = "0.4.8", features = ["generic-array"] }
+digest = { version = "0.10.5", features = ["mac"] }
 ecdsa = { version = "0.14.7", features = ["std", "digest", "sign", "verify", "pkcs8", "pem", "hazmat"] }
 elliptic-curve = { version = "0.12.3", features = ["arithmetic", "pem", "alloc", "std", "sec1", "hazmat"] }
 generic-array = "0.14.6"
@@ -39,8 +40,11 @@ thiserror = "1.0.36"
 tokio = { version = "1.21.1", features = ["net", "macros", "rt-multi-thread", "fs"] }
 tracing = "0.1.36"
 tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }
+url = "2.3.1"
 x509-cert = { version = "0.1.0", features = ["alloc", "pem", "std"] }
 zeroize = "1.5.7"
 
 [dev-dependencies]
+indoc = "1.0.7"
 openssl = "0.10.41"
+temp-dir = "0.1.11"
