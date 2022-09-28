@@ -100,7 +100,7 @@ impl Client {
                 region: &self.region,
                 service_name: SERVICE_NAME,
                 time: chrono::Utc::now(),
-                identity: identity,
+                identity,
             },
         )?;
 

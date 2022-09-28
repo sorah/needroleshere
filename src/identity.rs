@@ -125,7 +125,7 @@ impl Identity {
             chain.append(&mut crate::certificate::load_pem_chain_file(file).await?);
         }
 
-        Ok(Self::from_chain_and_key(&chain, pkey)?)
+        Self::from_chain_and_key(&chain, pkey)
     }
 
     pub async fn from_key_and_cert_and_chain_files(
@@ -288,7 +288,7 @@ mod test {
         let chain = crate::certificate::decode_pem_chain(CERT_EC_CHAIN).unwrap();
         let source_key = PrivateKey::from_private_key_pem(KEY_RSA).unwrap();
 
-        let identity = Identity::from_chain_and_key(&chain, source_key.clone());
+        let identity = Identity::from_chain_and_key(&chain, source_key);
 
         assert!(matches!(
             identity,
@@ -300,7 +300,7 @@ mod test {
     fn test_identity_serial_number() {
         let chain = crate::certificate::decode_pem_chain(CERT_RSA_CHAIN).unwrap();
         let source_key = PrivateKey::from_private_key_pem(KEY_RSA).unwrap();
-        let identity = Identity::from_chain_and_key(&chain, source_key.clone()).unwrap();
+        let identity = Identity::from_chain_and_key(&chain, source_key).unwrap();
 
         assert_eq!(
             identity.serial_number_string(),

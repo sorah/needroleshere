@@ -118,6 +118,6 @@ mod test {
                 return Some(value);
             }
         }
-        return None;
+        None
     }
 }

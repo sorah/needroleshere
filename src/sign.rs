@@ -585,31 +585,31 @@ mod test {
     fn make_test_identity_rsa() -> crate::identity::Identity {
         let chain = crate::certificate::decode_pem_chain(CERT_RSA_SINGLE).unwrap();
         let source_key = crate::identity::PrivateKey::from_private_key_pem(KEY_RSA).unwrap();
-        crate::identity::Identity::from_chain_and_key(&chain, source_key.clone()).unwrap()
+        crate::identity::Identity::from_chain_and_key(&chain, source_key).unwrap()
     }
 
     fn make_test_identity_rsa_chain() -> crate::identity::Identity {
         let chain = crate::certificate::decode_pem_chain(CERT_RSA_CHAIN).unwrap();
         let source_key = crate::identity::PrivateKey::from_private_key_pem(KEY_RSA).unwrap();
-        crate::identity::Identity::from_chain_and_key(&chain, source_key.clone()).unwrap()
+        crate::identity::Identity::from_chain_and_key(&chain, source_key).unwrap()
     }
 
     fn make_test_identity_ec() -> crate::identity::Identity {
         let chain = crate::certificate::decode_pem_chain(CERT_EC_SINGLE).unwrap();
         let source_key = crate::identity::PrivateKey::from_private_key_pem(KEY_EC).unwrap();
-        crate::identity::Identity::from_chain_and_key(&chain, source_key.clone()).unwrap()
+        crate::identity::Identity::from_chain_and_key(&chain, source_key).unwrap()
     }
 
     fn make_test_identity_ec_chain() -> crate::identity::Identity {
         let chain = crate::certificate::decode_pem_chain(CERT_EC_CHAIN).unwrap();
         let source_key = crate::identity::PrivateKey::from_private_key_pem(KEY_EC).unwrap();
-        crate::identity::Identity::from_chain_and_key(&chain, source_key.clone()).unwrap()
+        crate::identity::Identity::from_chain_and_key(&chain, source_key).unwrap()
     }
 
     fn make_test_identity_p384_chain() -> crate::identity::Identity {
         let chain = crate::certificate::decode_pem_chain(CERT_P384_CHAIN).unwrap();
         let source_key = crate::identity::PrivateKey::from_private_key_pem(KEY_P384).unwrap();
-        crate::identity::Identity::from_chain_and_key(&chain, source_key.clone()).unwrap()
+        crate::identity::Identity::from_chain_and_key(&chain, source_key).unwrap()
     }
 
     fn make_test_signing_params(identity: &crate::identity::Identity) -> SigningParams {
@@ -714,7 +714,7 @@ mod test {
         ];
         let source_key = crate::identity::PrivateKey::from_private_key_pem(KEY_RSA).unwrap();
         let identity =
-            crate::identity::Identity::from_chain_and_key(&chain, source_key.clone()).unwrap();
+            crate::identity::Identity::from_chain_and_key(&chain, source_key).unwrap();
 
         let params = make_test_signing_params(&identity);
         let headers =
