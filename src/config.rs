@@ -73,6 +73,12 @@ impl std::ops::Deref for Config {
     }
 }
 
+impl std::ops::DerefMut for Config {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct ConfigData {
     pub url: Option<String>,

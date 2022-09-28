@@ -11,6 +11,12 @@ impl std::ops::Deref for TestConfig {
     }
 }
 
+impl std::ops::DerefMut for TestConfig {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
 impl TestConfig {
     pub fn new() -> Self {
         let tmpdir = temp_dir::TempDir::with_prefix("needroleshere-dev").unwrap();

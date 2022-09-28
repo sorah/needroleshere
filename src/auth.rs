@@ -1,19 +1,19 @@
 //! Authentication for clients of credential provider implementation
 
-pub(crate) struct AuthorizationHeader<'a> {
+pub(crate) struct AccessToken<'a> {
     pub(crate) binding_name: &'a str,
     /// base64url encoded secret
     secret: &'a str,
 }
 
-impl<'a> std::fmt::Display for AuthorizationHeader<'a> {
+impl<'a> std::fmt::Display for AccessToken<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "Needroleshere {},{}", self.binding_name, self.secret)?;
+        write!(f, "needroleshere.{}.{}", self.binding_name, self.secret)?;
         Ok(())
     }
 }
 
-impl<'a> AuthorizationHeader<'a> {
+impl<'a> AccessToken<'a> {
     /// secret must be base64url encoded
     pub(crate) fn new(binding_name: &'a str, secret: &'a str) -> Self {
         Self {
@@ -23,14 +23,14 @@ impl<'a> AuthorizationHeader<'a> {
     }
 
     pub(crate) fn parse(value: &'a str) -> Result<Self, crate::error::Error> {
-        if !value.starts_with("Needroleshere ") {
+        if !value.starts_with("needroleshere.") {
             return Err(crate::error::Error::Unauthorized);
         }
-        let start = value.rfind(' ').unwrap();
+        let start = value.find('.').unwrap();
         let mut contents = value
             .get(start + 1..)
             .ok_or(crate::error::Error::Unauthorized)?
-            .splitn(2, ',');
+            .splitn(2, '.');
 
         let binding_name = contents.next().ok_or(crate::error::Error::Unauthorized)?;
         let secret = contents.next().ok_or(crate::error::Error::Unauthorized)?;
@@ -76,60 +76,60 @@ mod test {
 
     #[test]
     fn test_new() {
-        let ah = AuthorizationHeader::new("testrole", TEST_SECRET_B64);
+        let ah = AccessToken::new("testrole", TEST_SECRET_B64);
         assert_eq!(ah.binding_name, "testrole");
         assert_eq!(ah.secret, TEST_SECRET_B64);
         assert_eq!(
             ah.to_string(),
-            format!("Needroleshere testrole,{}", TEST_SECRET_B64)
+            format!("needroleshere.testrole.{}", TEST_SECRET_B64)
         );
     }
 
     #[test]
     fn test_parse() {
-        let hv = format!("Needroleshere testrole,{}", TEST_SECRET_B64);
-        let ah = AuthorizationHeader::parse(&hv).unwrap();
+        let hv = format!("needroleshere.testrole.{}", TEST_SECRET_B64);
+        let ah = AccessToken::parse(&hv).unwrap();
         assert_eq!(ah.binding_name, "testrole");
         assert_eq!(ah.secret, TEST_SECRET_B64);
     }
     #[test]
     fn test_parse_invalid1() {
         let hv = "Bearer something".to_string();
-        assert!(AuthorizationHeader::parse(&hv).is_err());
+        assert!(AccessToken::parse(&hv).is_err());
     }
     #[test]
     fn test_parse_invalid2() {
-        let hv = "Needroleshere ".to_string();
-        assert!(AuthorizationHeader::parse(&hv).is_err());
+        let hv = "needroleshere.".to_string();
+        assert!(AccessToken::parse(&hv).is_err());
     }
     #[test]
     fn test_parse_invalid3() {
-        let hv = "Needroleshere abc".to_string();
-        assert!(AuthorizationHeader::parse(&hv).is_err());
+        let hv = "needroleshere.abc".to_string();
+        assert!(AccessToken::parse(&hv).is_err());
     }
 
     #[test]
     fn test_verify() {
-        let hv = format!("Needroleshere testrole,{}", TEST_SECRET_B64);
-        let ah = AuthorizationHeader::parse(&hv).unwrap();
+        let hv = format!("needroleshere.testrole.{}", TEST_SECRET_B64);
+        let ah = AccessToken::parse(&hv).unwrap();
         ah.verify(TEST_SECRET_HASH).unwrap();
     }
     #[test]
     fn test_verify_invalid() {
-        let hv = "Needroleshere testrole,dGhpc2lzYXRlc3Q_".to_string();
-        let ah = AuthorizationHeader::parse(&hv).unwrap();
+        let hv = "needroleshere.testrole.dGhpc2lzYXRlc3Q_".to_string();
+        let ah = AccessToken::parse(&hv).unwrap();
         assert!(ah.verify(TEST_SECRET_HASH).is_err());
     }
     #[test]
     fn test_verify_invalid_b64() {
-        let hv = "Needroleshere testrole,~".to_string();
-        let ah = AuthorizationHeader::parse(&hv).unwrap();
+        let hv = "needroleshere.testrole.~".to_string();
+        let ah = AccessToken::parse(&hv).unwrap();
         assert!(ah.verify(TEST_SECRET_HASH).is_err());
     }
     #[test]
     fn test_verify_invalid_b64_2() {
-        let hv = "Needroleshere testrole,".to_string();
-        let ah = AuthorizationHeader::parse(&hv).unwrap();
+        let hv = "needroleshere.testrole.".to_string();
+        let ah = AccessToken::parse(&hv).unwrap();
         assert!(ah.verify(TEST_SECRET_HASH).is_err());
     }
 }
