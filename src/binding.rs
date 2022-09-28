@@ -208,14 +208,24 @@ impl From<EnvironmentListInner> for EnvironmentList {
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind")]
 pub enum EnvironmentMode {
     EcsFull(EnvironmentOpts),
     EcsRelative(EnvironmentOpts),
+    EcsFullQuery(EnvironmentOpts),
+    EcsRelativeQuery(EnvironmentOpts),
+
     Empty(EnvironmentOpts),
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct EnvironmentOpts {}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TokenInsn {
+    Header,
+    Query,
+}
 
 impl EnvironmentMode {
     pub fn render(
@@ -224,41 +234,70 @@ impl EnvironmentMode {
         config: &crate::config::Config,
     ) -> Result<EnvironmentList, crate::error::Error> {
         match *self {
-            Self::EcsFull(ref opts) => self.render_as_ecs_full(opts, binding, config),
-            Self::EcsRelative(ref opts) => self.render_as_ecs_relative(opts, binding, config),
+            Self::EcsFull(_) => self.render_as_ecs_full(TokenInsn::Header, binding, config),
+            Self::EcsFullQuery(_) => self.render_as_ecs_full(TokenInsn::Query, binding, config),
+            Self::EcsRelative(_) => self.render_as_ecs_relative(TokenInsn::Header, binding, config),
+            Self::EcsRelativeQuery(_) => {
+                self.render_as_ecs_relative(TokenInsn::Query, binding, config)
+            }
+
             Self::Empty(_) => Ok(Vec::new().into()),
         }
     }
 
     fn render_as_ecs_full(
         &self,
-        opts: &EnvironmentOpts,
+        token_insn: TokenInsn,
         binding: &RoleBinding,
         config: &crate::config::Config,
     ) -> Result<EnvironmentList, crate::error::Error> {
-        let mut url = config.base_url()?;
-        self.set_access_token_to_url(&mut url, binding);
+        let mut list = Vec::new();
+        {
+            let mut url = config.base_url()?;
+            self.set_url_params(&mut url, binding, token_insn);
+            list.push((AWS_CONTAINER_CREDENTIALS_FULL_URI, url.into()));
+        }
+        if token_insn == TokenInsn::Header {
+            list.push((
+                AWS_CONTAINER_AUTHORIZATION_TOKEN,
+                format!("Bearer {}", binding.access_token()),
+            ));
+        }
 
-        Ok(vec![(AWS_CONTAINER_CREDENTIALS_FULL_URI, url.into())].into())
+        Ok(list.into())
     }
 
     fn render_as_ecs_relative(
         &self,
-        opts: &EnvironmentOpts,
+        token_insn: TokenInsn,
         binding: &RoleBinding,
         _config: &crate::config::Config,
     ) -> Result<EnvironmentList, crate::error::Error> {
-        let mut url = url::Url::parse("http://dummy.invalid").unwrap();
-        self.set_access_token_to_url(&mut url, binding);
-
-        let origin_form = &url[url::Position::BeforePath..url::Position::AfterQuery];
-        Ok(vec![(AWS_CONTAINER_CREDENTIALS_RELATIVE_URI, origin_form.into())].into())
+        let mut list = Vec::new();
+        {
+            let mut url = url::Url::parse("http://dummy.invalid").unwrap();
+            self.set_url_params(&mut url, binding, token_insn);
+            let origin_form = &url[url::Position::BeforePath..url::Position::AfterQuery];
+            list.push((
+                AWS_CONTAINER_CREDENTIALS_RELATIVE_URI,
+                origin_form.to_string(),
+            ));
+        }
+        if token_insn == TokenInsn::Header {
+            list.push((
+                AWS_CONTAINER_AUTHORIZATION_TOKEN,
+                format!("Bearer {}", binding.access_token()),
+            ));
+        }
+        Ok(list.into())
     }
 
-    fn set_access_token_to_url(&self, url: &mut url::Url, binding: &RoleBinding) {
+    fn set_url_params(&self, url: &mut url::Url, binding: &RoleBinding, token_insn: TokenInsn) {
         url.set_path("/ecs/credentials");
-        url.query_pairs_mut()
-            .append_pair("access_token", &binding.access_token().to_string());
+        if token_insn == TokenInsn::Query {
+            url.query_pairs_mut()
+                .append_pair("access_token", &binding.access_token().to_string());
+        }
     }
 }
 
@@ -297,8 +336,8 @@ mod test {
     #[test]
     fn test_role_binding_auth_roundtrip() {
         let b = make_test_role_binding();
-        let ah = b.access_token();
-        ah.verify(&b.secret_hash).unwrap();
+        let at = b.access_token();
+        at.verify(&b.secret_hash).unwrap();
     }
 
     #[tokio::test]
@@ -323,40 +362,63 @@ mod test {
         binding.remove(&config).await.unwrap();
     }
 
-    #[test]
-    fn test_rendering_ecs_full_environment() {
+    fn render_env(mode: EnvironmentMode) -> (String, EnvironmentListInner) {
         let config = crate::dev::TestConfig::new();
-        let binding = make_test_role_binding();
-        let ah = binding.access_token();
-        let envlist = EnvironmentMode::EcsFull(EnvironmentOpts::default())
-            .render(&binding, &config)
-            .unwrap()
-            .into_inner();
+        let binding = make_test_role_binding(); // XXX: binding has Empty mode
+        let at = binding.access_token();
+        let envlist = mode.render(&binding, &config).unwrap().into_inner();
+        (at.to_string(), envlist)
+    }
 
+    #[test]
+    fn test_rendering_ecs_full() {
+        let (at, envlist) = render_env(EnvironmentMode::EcsFull(EnvironmentOpts::default()));
+        assert_eq!(
+            envlist,
+            vec![
+                (AWS_CONTAINER_AUTHORIZATION_TOKEN, format!("Bearer {at}")),
+                (
+                    AWS_CONTAINER_CREDENTIALS_FULL_URI,
+                    "http://nrh.test.invalid:7224/ecs/credentials".to_string(),
+                ),
+            ]
+        )
+    }
+    #[test]
+    fn test_rendering_ecs_full_query() {
+        let (at, envlist) = render_env(EnvironmentMode::EcsFullQuery(EnvironmentOpts::default()));
         assert_eq!(
             envlist,
             vec![(
                 AWS_CONTAINER_CREDENTIALS_FULL_URI,
-                format!("http://nrh.test.invalid:7224/ecs/credentials?access_token={ah}"),
+                format!("http://nrh.test.invalid:7224/ecs/credentials?access_token={at}"),
             ),]
         )
     }
     #[test]
-    fn test_rendering_ecs_relative_environment() {
-        let mut config = crate::dev::TestConfig::new();
-        config.url = None;
-        let binding = make_test_role_binding();
-        let ah = binding.access_token();
-        let envlist = EnvironmentMode::EcsRelative(EnvironmentOpts::default())
-            .render(&binding, &config)
-            .unwrap()
-            .into_inner();
+    fn test_rendering_ecs_relative() {
+        let (at, envlist) = render_env(EnvironmentMode::EcsRelative(EnvironmentOpts::default()));
+        assert_eq!(
+            envlist,
+            vec![
+                (AWS_CONTAINER_AUTHORIZATION_TOKEN, format!("Bearer {at}")),
+                (
+                    AWS_CONTAINER_CREDENTIALS_RELATIVE_URI,
+                    "/ecs/credentials".to_string(),
+                ),
+            ]
+        )
+    }
 
+    #[test]
+    fn test_rendering_ecs_relative_query() {
+        let (at, envlist) =
+            render_env(EnvironmentMode::EcsRelativeQuery(EnvironmentOpts::default()));
         assert_eq!(
             envlist,
             vec![(
                 AWS_CONTAINER_CREDENTIALS_RELATIVE_URI,
-                format!("/ecs/credentials?access_token={ah}"),
+                format!("/ecs/credentials?access_token={at}"),
             ),]
         )
     }

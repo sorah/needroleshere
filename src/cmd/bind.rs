@@ -38,7 +38,18 @@ pub struct BindArgs {
     #[clap(long, action = clap::ArgAction::SetTrue)]
     no_validate: bool,
 
-    /// Mode to use; default to ecs-full
+    /// Specify which method to provide to consumer; default to ecs-full
+    ///
+    /// - ecs-full: acts as ECS Credentials Provider, with AWS_CONTAINER_CREDENTIALS_FULL_URI
+    /// - ecs-relative: acts as ECS Credentials Provider, with AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+    ///
+    /// ecs-relative mode requires a special server process setup to listen on 169.254.170.2:80.
+    ///
+    /// ecs-* type has -query variants to prevent using AWS_CONTAINER_AUTHORIZATION_TOKEN as some
+    /// SDKs don't support. Note that -query variants don't provide SSRF protection.
+    ///
+    /// ecs-full is recommended but less compatible, and ecs-relative-query is the most
+    /// compatible option but lacks SSRF protection.
     #[clap(arg_enum, long)]
     mode: Option<EnvironmentModeArg>,
 
@@ -51,13 +62,19 @@ pub struct BindArgs {
 pub enum EnvironmentModeArg {
     EcsFull,
     EcsRelative,
+    EcsFullQuery,
+    EcsRelativeQuery,
 }
 
 impl EnvironmentModeArg {
     fn with_opts(&self, opts: crate::binding::EnvironmentOpts) -> crate::binding::EnvironmentMode {
         match self {
             EnvironmentModeArg::EcsFull => crate::binding::EnvironmentMode::EcsFull(opts),
+            EnvironmentModeArg::EcsFullQuery => crate::binding::EnvironmentMode::EcsFullQuery(opts),
             EnvironmentModeArg::EcsRelative => crate::binding::EnvironmentMode::EcsRelative(opts),
+            EnvironmentModeArg::EcsRelativeQuery => {
+                crate::binding::EnvironmentMode::EcsRelativeQuery(opts)
+            }
         }
     }
 }
