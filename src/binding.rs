@@ -10,7 +10,7 @@ pub struct RoleBinding {
     pub private_key_file: String,
     pub request: crate::client::CreateSessionRequest,
 
-    pub env_mode: EnvironmentMode,
+    pub mode: EnvironmentMode,
 
     #[serde(skip)]
     pub secret: Option<String>,
@@ -38,7 +38,7 @@ impl RoleBinding {
         name: String,
         certificate_files: Vec<String>,
         private_key_file: String,
-        env_mode: EnvironmentMode,
+        mode: EnvironmentMode,
         request: crate::client::CreateSessionRequest,
     ) -> Result<Self, crate::error::Error> {
         use base64ct::Encoding;
@@ -60,7 +60,7 @@ impl RoleBinding {
 
         Ok(Self {
             name,
-            env_mode,
+            mode,
             secret: Some(secret),
             certificate_files,
             private_key_file,
@@ -107,7 +107,7 @@ impl RoleBinding {
         use tokio::io::AsyncWriteExt;
 
         let binding_json = serde_json::to_vec_pretty(&self)?;
-        let env = self.env_mode.render(self, config)?.to_string();
+        let env = self.mode.render(self, config)?.to_string();
 
         config.ensure_config_dir().await?;
 
