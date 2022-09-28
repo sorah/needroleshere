@@ -40,11 +40,26 @@ pub struct BindArgs {
 
     /// Mode to use; default to ecs-full
     #[clap(arg_enum, long)]
-    mode: Option<crate::binding::EnvironmentMode>,
+    mode: Option<EnvironmentModeArg>,
 
     /// AWS region to use during validation; optional
     #[clap(long)]
     region: Option<String>,
+}
+
+#[derive(Clone, Debug, clap::ValueEnum)]
+pub enum EnvironmentModeArg {
+    EcsFull,
+    EcsRelative,
+}
+
+impl EnvironmentModeArg {
+    fn with_opts(&self, opts: crate::binding::EnvironmentOpts) -> crate::binding::EnvironmentMode {
+        match self {
+            EnvironmentModeArg::EcsFull => crate::binding::EnvironmentMode::EcsFull(opts),
+            EnvironmentModeArg::EcsRelative => crate::binding::EnvironmentMode::EcsRelative(opts),
+        }
+    }
 }
 
 #[tokio::main]
@@ -57,10 +72,17 @@ pub async fn run(config: &crate::config::Config, args: &BindArgs) -> Result<(), 
         session_name: args.session_name.clone(),
     };
 
+    let env_opts = crate::binding::EnvironmentOpts::default();
+    let env_mode = match args.mode {
+        Some(ref ma) => ma.with_opts(env_opts),
+        None => crate::binding::EnvironmentMode::EcsFull(env_opts),
+    };
+
     let binding = crate::binding::RoleBinding::new(
         args.name.clone(),
         args.certificate.clone(),
         args.private_key.clone(),
+        env_mode,
         req,
     )?;
 
@@ -76,12 +98,7 @@ pub async fn run(config: &crate::config::Config, args: &BindArgs) -> Result<(), 
         tracing::info!("Skipping validation");
     }
 
-    let mode = args
-        .mode
-        .clone()
-        .unwrap_or(crate::binding::EnvironmentMode::EcsFull);
-
-    binding.save(config, mode).await?;
+    binding.save(config).await?;
 
     Ok(())
 }

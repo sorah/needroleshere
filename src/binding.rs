@@ -10,6 +10,8 @@ pub struct RoleBinding {
     pub private_key_file: String,
     pub request: crate::client::CreateSessionRequest,
 
+    pub env_mode: EnvironmentMode,
+
     #[serde(skip)]
     pub secret: Option<String>,
 }
@@ -36,6 +38,7 @@ impl RoleBinding {
         name: String,
         certificate_files: Vec<String>,
         private_key_file: String,
+        env_mode: EnvironmentMode,
         request: crate::client::CreateSessionRequest,
     ) -> Result<Self, crate::error::Error> {
         use base64ct::Encoding;
@@ -57,11 +60,12 @@ impl RoleBinding {
 
         Ok(Self {
             name,
-            secret_hash,
+            env_mode,
             secret: Some(secret),
             certificate_files,
             private_key_file,
             request,
+            secret_hash,
         })
     }
 
@@ -99,15 +103,11 @@ impl RoleBinding {
         config.path_for_env(&self.name)
     }
 
-    pub async fn save(
-        &self,
-        config: &crate::config::Config,
-        env_mode: EnvironmentMode,
-    ) -> Result<(), crate::error::Error> {
+    pub async fn save(&self, config: &crate::config::Config) -> Result<(), crate::error::Error> {
         use tokio::io::AsyncWriteExt;
 
         let binding_json = serde_json::to_vec_pretty(&self)?;
-        let env = env_mode.render(self, config)?.to_string();
+        let env = self.env_mode.render(self, config)?.to_string();
 
         config.ensure_config_dir().await?;
 
@@ -207,12 +207,15 @@ impl From<EnvironmentListInner> for EnvironmentList {
     }
 }
 
-#[derive(Clone, Debug, clap::ValueEnum)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum EnvironmentMode {
-    EcsFull,
-    EcsRelative,
-    Empty,
+    EcsFull(EnvironmentOpts),
+    EcsRelative(EnvironmentOpts),
+    Empty(EnvironmentOpts),
 }
+
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct EnvironmentOpts {}
 
 impl EnvironmentMode {
     pub fn render(
@@ -221,14 +224,15 @@ impl EnvironmentMode {
         config: &crate::config::Config,
     ) -> Result<EnvironmentList, crate::error::Error> {
         match *self {
-            Self::EcsFull => self.render_as_ecs_full(binding, config),
-            Self::EcsRelative => self.render_as_ecs_relative(binding, config),
-            Self::Empty => Ok(Vec::new().into()),
+            Self::EcsFull(ref opts) => self.render_as_ecs_full(opts, binding, config),
+            Self::EcsRelative(ref opts) => self.render_as_ecs_relative(opts, binding, config),
+            Self::Empty(_) => Ok(Vec::new().into()),
         }
     }
 
     fn render_as_ecs_full(
         &self,
+        opts: &EnvironmentOpts,
         binding: &RoleBinding,
         config: &crate::config::Config,
     ) -> Result<EnvironmentList, crate::error::Error> {
@@ -240,6 +244,7 @@ impl EnvironmentMode {
 
     fn render_as_ecs_relative(
         &self,
+        opts: &EnvironmentOpts,
         binding: &RoleBinding,
         _config: &crate::config::Config,
     ) -> Result<EnvironmentList, crate::error::Error> {
@@ -269,6 +274,7 @@ mod test {
             "testrole".to_string(),
             vec!["".to_string()],
             "".to_string(),
+            EnvironmentMode::Empty(EnvironmentOpts::default()),
             crate::client::CreateSessionRequest {
                 role_arn: "".to_string(),
                 session_name: None,
@@ -299,7 +305,7 @@ mod test {
     async fn test_role_binding_save() {
         let config = crate::dev::TestConfig::new();
         let binding = make_test_role_binding();
-        binding.save(&config, EnvironmentMode::Empty).await.unwrap();
+        binding.save(&config).await.unwrap();
 
         {
             let binding_path = config.tmpdir.path().join("bindings").join("testrole.json");
@@ -313,7 +319,7 @@ mod test {
             assert_eq!(meta.permissions().mode(), 0o100600);
         }
 
-        binding.save(&config, EnvironmentMode::Empty).await.unwrap();
+        binding.save(&config).await.unwrap();
         binding.remove(&config).await.unwrap();
     }
 
@@ -322,7 +328,7 @@ mod test {
         let config = crate::dev::TestConfig::new();
         let binding = make_test_role_binding();
         let ah = binding.access_token();
-        let envlist = EnvironmentMode::EcsFull
+        let envlist = EnvironmentMode::EcsFull(EnvironmentOpts::default())
             .render(&binding, &config)
             .unwrap()
             .into_inner();
@@ -341,7 +347,7 @@ mod test {
         config.url = None;
         let binding = make_test_role_binding();
         let ah = binding.access_token();
-        let envlist = EnvironmentMode::EcsRelative
+        let envlist = EnvironmentMode::EcsRelative(EnvironmentOpts::default())
             .render(&binding, &config)
             .unwrap()
             .into_inner();
