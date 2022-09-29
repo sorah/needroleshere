@@ -9,7 +9,7 @@ This tool is a helper program for AWS IAM Roles Anywhere to obtain credentials u
 
 - Cargo: `cargo install needroleshere`
 - Arch: `yay -Sy needroleshere` <sup>[[AUR](https://aur.archlinux.org/packages/needroleshere)]</sup>
-- Debian/Ubuntu: https://github.com/nkmideb/needroleshere ([nekomit-originals repo](https://sorah.jp/packaging/debian/))
+- Debian/Ubuntu: https://github.com/nkmideb/needroleshere/releases ([nekomit-originals repo](https://sorah.jp/packaging/debian/))
 
 ## Usage
 
