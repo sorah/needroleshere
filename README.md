@@ -7,14 +7,25 @@ This tool is a helper program for AWS IAM Roles Anywhere to obtain credentials u
 
 ## Install
 
-- Cargo: `cargo install needroleshere`
+`cargo build --release --locked` (not released yet)
 
 <!--
+- Cargo: `cargo install needroleshere`
 - Arch: `yay -Sy needroleshere`
 - Debian/Ubuntu:
 -->
 
 ## Usage
+
+Needroleshere offers the following modes:
+
+- `process-credentials`: Process credentials provider mode
+- `server` + `ecs-full`: ECS credentials provider mode using `AWS_CONTAINER_CREDENTIALS_FULL_URI` + `AWS_CONTAINER_AUTHORIZATION_TOKEN` 
+- `server` + `ecs-full-query`: ECS credentials provider mode using `AWS_CONTAINER_CREDENTIALS_FULL_URI`
+- `server` + `ecs-relative`: ECS credentials provider mode using `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` + `AWS_CONTAINER_AUTHORIZATION_TOKEN` 
+- `server` + `ecs-relative-query`: ECS credentials provider mode using `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`
+
+Comparisons explained later.
 
 ### Process credentials provider mode (`process-credentials`)
 
@@ -43,7 +54,7 @@ Needroleshere supports (only) launching through systemd.socket.
 
 #### Use as ECS Container Credentials Provider
 
-Server mode supports [Container credentials provider](https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html). To generate use this provider, you first need to generate a binding configuration and environment variables file using a helper command.
+Server mode supports [Container credentials provider](https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html). To use this provider, you first need to generate a binding configuration and environment variables file using a helper command.
 
 This provider supports using multiple roles on a single server process.
 
@@ -51,6 +62,7 @@ This provider supports using multiple roles on a single server process.
 
 ```
 needroleshere bind myrole \
+  --mode ecs-full \
   --url http://127.0.0.1:7224 \
   --certificate /path/to/certificate.pem \
   --private-key /path/to/private-key.pem \
@@ -62,9 +74,8 @@ needroleshere bind myrole \
 
 This will generate a configuration at `/path/to/etc/needroleshere/bindings/myrole` and a environment file at `/path/to/etc/needroleshere/env/myrole`. Treat a environment file as a secret as it includes a shared secret between Needroleshere and credentials consumer.
 
-- `AWS_CONTAINER_CREDENTIALS_FULL_URI` is used by default. Adjust `--url` based on your socket configuration.
-  - `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` can be used with `--relative` but it requires an additional setup to listen on `169.254.170.2`; described later). In this case, `--url` can be omit.
 - `--configuration-directory` is default to `$RUNTIME_DIRECTORY` if not specified.
+- Mode variants can be specified by `--mode`. For instance `--mode ecs-relative-query` for enabling `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` only.
 
 Running this through systemd unit is a recommended way:
 
@@ -107,6 +118,34 @@ CredentialFile=/run/needroleshere/env/somethingawesome
 ```
 -->
 
+## Comparison between modes
+
+Compatibility matrix:
+
+  | process-credentials | ecs-full | ecs-full-query | ecs-relative | ecs-relative-query
+-- | -- | -- | -- | -- | --
+AWS CLI v2 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AWS SDK for C++ | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AWS SDK for Go V2 (1.x) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AWS SDK for Go 1.x (V1) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AWS SDK for Java 2.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AWS SDK for Java 1.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AWS SDK for JavaScript 3.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AWS SDK for JavaScript 2.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AWS SDK for .NET 3.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AWS SDK for PHP 3.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AWS SDK for Python (Boto3) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AWS SDK for Ruby 3.x | :white_check_mark: |   |   |   | :white_check_mark:
+AWS SDK for Rust (preview) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+Rusoto | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+minio-go |   | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+fog-aws |   |   |   |   | :white_check_mark:
+
+`process-credentials` is most preferred and easy way, and use `ecs-relative-query` as a last resort option.
+
+- `ecs-*` type has `-query` variants to prevent using `AWS_CONTAINER_AUTHORIZATION_TOKEN` as some SDKs don't support. Note that -query variants don't provide SSRF protection.
+- `ecs-relative*` mode requires a special server process setup to listen on `169.254.170.2:80`.
+
 ## Caveats
 
 - only keys in RSA, P-256, P-384 are supported.
@@ -122,7 +161,7 @@ CredentialFile=/run/needroleshere/env/somethingawesome
 
 ### Server
 
-run with systemfd and cargo-watch. the following are short hand to start on 127.0.0.1:3000:
+run with systemfd and cargo-watch. the following is a shorthand to start on 127.0.0.1:3000:
 
 ```
 ./dev/serve.sh
