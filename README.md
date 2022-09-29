@@ -1,9 +1,9 @@
 # Needroleshere - Yet Another AWS IAM Roles Anywhere helper
 
-This tool is a helper program for AWS IAM Roles Anywhere to obtain credentials using a X.509 ceritificate and corresponding private key. Works as a drop-in replacement with some advantages including:
+This tool is a helper program for AWS IAM Roles Anywhere to obtain credentials using a X.509 ceritificate and corresponding private key. It works well as a drop-in replacement of the official [rolesanywhere-credential-helper](https://github.com/aws/rolesanywhere-credential-helper) with some advantages including:
 
 - Support loading a fullchain certificate PEM file that contains both an end entity certificate and its intermediate CA certificates.
-- Support ECS Container Credentials Provider for SDKs and libraries without process credentials provider support.
+- Support ECS container credentials provider for SDKs and libraries without process credentials provider support.
 
 ## Install
 
@@ -20,10 +20,10 @@ This tool is a helper program for AWS IAM Roles Anywhere to obtain credentials u
 Needroleshere offers the following modes:
 
 - `process-credentials`: Process credentials provider mode
-- `server` + `ecs-full`: ECS credentials provider mode using `AWS_CONTAINER_CREDENTIALS_FULL_URI` + `AWS_CONTAINER_AUTHORIZATION_TOKEN` 
-- `server` + `ecs-full-query`: ECS credentials provider mode using `AWS_CONTAINER_CREDENTIALS_FULL_URI`
-- `server` + `ecs-relative`: ECS credentials provider mode using `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` + `AWS_CONTAINER_AUTHORIZATION_TOKEN` 
-- `server` + `ecs-relative-query`: ECS credentials provider mode using `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`
+- `server` + `ecs-full`: Container credentials provider mode using `AWS_CONTAINER_CREDENTIALS_FULL_URI` + `AWS_CONTAINER_AUTHORIZATION_TOKEN` 
+- `server` + `ecs-full-query`: Container credentials provider mode using `AWS_CONTAINER_CREDENTIALS_FULL_URI`
+- `server` + `ecs-relative`: Container credentials provider mode using `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` + `AWS_CONTAINER_AUTHORIZATION_TOKEN` 
+- `server` + `ecs-relative-query`: Container credentials provider mode using `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`
 
 Comparisons explained later.
 
@@ -48,13 +48,33 @@ Server mode runs a HTTP server to act as other AWS SDK credential providers to e
 
 #### Run a server
 
-Needroleshere supports (only) launching through systemd.socket.
+Needroleshere supports (only) launching through systemd socket activation. Configure systemd units like as follows:
 
-(TBD)
+```systemd
+# /etc/systemd/system/needsroleshere.service
+[Unit]
+Wants=needsrolehere.socket
 
-#### Use as ECS Container Credentials Provider
+[Service]
+Type=simple
+ExecStart=/usr/bin/needroleshere serve --region AWS_REGION
+RuntimeDirectory=needroleshere
+```
 
-Server mode supports [Container credentials provider](https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html). To use this provider, you first need to generate a binding configuration and environment variables file using a helper command.
+```systemd
+# /etc/systemd/system/needsroleshere.socket
+[Socket]
+ListenStream=127.0.0.1:80
+FreeBind=yes
+IPAddressAllow=localhost
+IPAddressDeny=any
+```
+
+Specify `User=`, `Group=` as needed. 
+
+#### Use as ECS container credentials provider
+
+Server mode supports [ECS container credentials provider](https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html). To use this provider, you first need to generate a binding configuration and environment variables file using a helper command.
 
 This provider supports using multiple roles on a single server process.
 
@@ -90,7 +110,8 @@ Wants=needsrolehere.socket needroleshere.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/needroleshere bind somethingawesome ...
+# use of --no-validate is recommended if you run `bind` in a systemd unit
+ExecStart=/usr/bin/needroleshere bind somethingawesome --no-validate ...
 ExecStop=/usr/bin/needroleshere unbind somethingawesome
 RuntimeDirectory=needroleshere
 
@@ -146,16 +167,45 @@ fog-aws |   |   |   |   | :white_check_mark:
 - `ecs-*` type has `-query` variants to prevent using `AWS_CONTAINER_AUTHORIZATION_TOKEN` as some SDKs don't support. Note that -query variants don't provide SSRF protection.
 - `ecs-relative*` mode requires a special server process setup to listen on `169.254.170.2:80`.
 
+## Security Model
+
+- In the server mode, the server process has to be able to read private keys on behalf of credentials consumers. Plus, `needroleshere bind` command also needs to be able to read keys unless `--no-validate` is used.
+  - To allow a certificate renewal with key rotation, the server process reads and parses certificates and key files in every request.
+- In the ECS container credentials provider mode, an endpoint uses an access token to distinguish a role binding and authenticates its consumer. Access tokens are based on shared secret generated during `needroleshere bind`.
+  - a SHA-384 digest of secret is stored to a role binding data file and read from the server process, and a secret in cleartext is stored to a environment file.
+  - So consider an environment file as a secret and protect it accordingly. `needroleshere bind` preserves file mode and owner of a environment file in subsequent runs for a existing role binding.
+  - Except for `-query` mode variants, `AWS_CONTAINER_AUTHORIZATION_TOKEN` where turns into HTTP `Authorization` header is used to pass an access token. `-query` mode uses HTTP URL query string instead. As a protection measure, the endpoint rejects requests with an access token passed into a query string if a corresponding role binding is configured to use non `-query` mode variants, which uses `Authorization` header.
+
+
 ## Caveats
 
-- only keys in RSA, P-256, P-384 are supported.
+- Only keys in RSA, P-256, P-384 are supported.
 - Signer implementation of AWS4-X509-*-SHA256 algorithm uses crates from [RustCrypto](https://github.com/RustCrypto). Refer to their [security warning](https://github.com/RustCrypto/signatures/tree/master/ecdsa#%EF%B8%8F-security-warning) if you use EC keys with this tool.
   - For EC keys of curves other than P-256, its primitive implementation gated behind `hazmat` feature will be used; because AWS4-X509-ECDSA-SHA256 requires SHA-256 hash function to be used in ECDSA regardless of a curve's fields size, but `ecdsa` crate restricts hash function to use with ECDSA to match the same length of curve, so we have to use primitives to force using SHA-256 for curves other than P-256...
 - Server mode is designed and intended to be primarily used on servers and with systemd. Supporting this mode for non-server usage is out of scope for this project.
   - Especially, ECS relative URI mode requires a privilege to listen :80. We don't have a plan to implement easy-to-use implicit helper to support launching from non-root user like in [aws-vault](https://github.com/99designs/aws-vault). 
-- Server mode can use a single AWS region per process. `needroleshere bind` does not take `--region` argument.
-- Server mode reads certificates and keys per request. This allows certificate renewal without reloading/restarting the server process.
+- Server mode can use a single AWS region per process. `needroleshere bind` does take `--region` argument, but it is only used for configuration validation happens on it.
+- Server mode reads certificates and a key per request. This allows certificate renewal without reloading/restarting the server process.
 - Note that [systemd.exec](https://www.freedesktop.org/software/systemd/man/systemd.exec.html#EnvironmentFile=) states that using EnvironmentFile= for credentials is discouraged.
+
+## Configuration Examples
+
+### Setup for `ecs-relative` mode variants
+
+Reconfigure your socket unit like the following. You need to update `--url` if you're also using `ecs-full` mode variants.
+
+```systemd
+# /etc/systemd/system/needsroleshere.socket
+[Socket]
+ListenStream=169.254.170.2:80
+FreeBind=yes
+
+ExecStartPre=-/bin/ip address add 169.254.170.2/32 dev lo
+
+IPAddressAllow=localhost
+IPAddressAllow=169.254.170.2/32
+IPAddressDeny=any
+```
 
 ## Development
 
