@@ -56,5 +56,5 @@ zeroize = { version = "1.5.7", features = ["derive", "std", "alloc"] }
 
 [dev-dependencies]
 indoc = "1.0.7"
-openssl = "0.10.41"
+openssl = "0.10.42"
 temp-dir = "0.1.11"
