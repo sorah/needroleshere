@@ -5,7 +5,7 @@ pub struct CredentialProcessArgs {
     /// Certificates with RSA, P-256, or P-384 key are supported.
     /// A certificate file may include intermediate CA certificate(s); informally known as fullchain.pem.
     #[clap(long)]
-    certificate: String, // TODO: make this Vec
+    certificate: Vec<String>,
     /// Path to a private key in PEM corresponding to a certificate
     #[clap(long)]
     private_key: String,
@@ -46,12 +46,12 @@ pub struct CredentialProcessResponse {
 
 #[tokio::main]
 pub async fn run(args: &CredentialProcessArgs) -> Result<(), anyhow::Error> {
-    let identity = crate::identity::Identity::from_key_and_cert_and_chain_files(
+    let identity = crate::identity::Identity::from_file(
         &args.private_key,
-        &args.certificate,
         &args
-            .intermediates
+            .certificate
             .iter()
+            .chain(args.intermediates.iter())
             .map(|v| v.as_ref())
             .collect::<Vec<&str>>(),
     )

@@ -158,18 +158,6 @@ impl Identity {
         Self::from_chain_and_key(&chain, pkey)
     }
 
-    pub async fn from_key_and_cert_and_chain_files(
-        private_key_path: &str,
-        certificate_file: &str,
-        intermediate_files: &[&str],
-    ) -> Result<Self, crate::error::Error> {
-        tracing::trace!(message = "from_key_and_cert_and_chain_files", private_key_path = ?private_key_path, certificate_file = ?certificate_file, intermediate_files= ?intermediate_files);
-        let mut certificate_file_paths = Vec::with_capacity(intermediate_files.len() + 1);
-        certificate_file_paths.push(certificate_file);
-        certificate_file_paths.extend_from_slice(intermediate_files);
-        Self::from_file(private_key_path, &certificate_file_paths).await
-    }
-
     pub fn validate(&self) -> Result<(), crate::error::Error> {
         if self.certificate().tbs_certificate.serial_number.len() > x509_cert::der::Length::new(20)
         {
