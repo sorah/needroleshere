@@ -713,8 +713,7 @@ mod test {
             source_chain1[1].clone(),
         ];
         let source_key = crate::identity::PrivateKey::from_private_key_pem(KEY_RSA).unwrap();
-        let identity =
-            crate::identity::Identity::from_chain_and_key(&chain, source_key).unwrap();
+        let identity = crate::identity::Identity::from_chain_and_key(&chain, source_key).unwrap();
 
         let params = make_test_signing_params(&identity);
         let headers =
