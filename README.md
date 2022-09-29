@@ -1,5 +1,9 @@
 # Needroleshere - Yet Another AWS IAM Roles Anywhere helper
 
+[![crates.io](https://img.shields.io/crates/v/needroleshere.svg)](https://crates.io/crates/needroleshere)
+[![build status](https://github.com/sorah/needroleshere/workflows/CI/badge.svg)](https://github.com/sorah/needroleshere/actions/workflows/ci.yml?query=branch%3Amain)
+[![dependency status](https://deps.rs/repo/github/sorah/needroleshere/status.svg)](https://deps.rs/repo/github/sorah/needroleshere)
+
 This tool is a helper program for AWS IAM Roles Anywhere to obtain credentials using a X.509 ceritificate and corresponding private key. It works well as a drop-in replacement of the official [rolesanywhere-credential-helper](https://github.com/aws/rolesanywhere-credential-helper) with some advantages including:
 
 - Support loading a fullchain certificate PEM file that contains both an end entity certificate and its intermediate CA certificates.
