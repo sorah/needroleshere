@@ -99,7 +99,7 @@ impl RoleBinding {
         config.path_for_binding(&self.name)
     }
 
-    fn env_path(&self, config: &crate::config::Config) -> std::path::PathBuf {
+    pub fn env_path(&self, config: &crate::config::Config) -> std::path::PathBuf {
         config.path_for_env(&self.name)
     }
 

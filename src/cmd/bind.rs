@@ -81,6 +81,8 @@ impl EnvironmentModeArg {
 
 #[tokio::main]
 pub async fn run(config: &crate::config::Config, args: &BindArgs) -> Result<(), anyhow::Error> {
+    let _span = tracing::info_span!("bind").entered();
+
     let req = crate::client::CreateSessionRequest {
         role_arn: args.role_arn.clone(),
         profile_arn: args.profile_arn.clone(),
@@ -107,15 +109,20 @@ pub async fn run(config: &crate::config::Config, args: &BindArgs) -> Result<(), 
 
     let validate = !args.no_validate;
     if validate {
-        tracing::info!("Validation");
+        tracing::info!("Validating configuration...");
         let identity = binding.identity().await?;
         let client = crate::client::Client::new(args.region.as_ref().map(|v| v.as_ref()))?;
-        client.create(&identity, &binding.request).await?;
-    } else {
-        tracing::info!("Skipping validation");
+
+        let session = client.create(&identity, &binding.request).await?;
+        let assumed_role = session.credential_set.get(0).ok_or_else(|| {
+            crate::error::Error::Unknown("returned CredentialSet is missing item".to_string())
+        })?;
+        tracing::info!(message = "Configuration validated and looks okay", access_key_id = ?assumed_role.credentials.access_key_id, expiration = ?assumed_role.credentials.expiration, assumed_role_user_arn= ?assumed_role.assumed_role_user.arn);
     }
 
     binding.save(config).await?;
+
+    tracing::info!(message = "Saved a role binding and rendered an environment file", environment_file = ?binding.env_path(config));
 
     Ok(())
 }
