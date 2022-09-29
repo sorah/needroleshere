@@ -1,8 +1,12 @@
 [package]
 name = "needroleshere"
+description = "Yet another AWS IAM Roles Anywhere helper"
 version = "0.1.0"
 edition = "2021"
-
+authors = ["Sorah Fukumori <her@sorah.jp>"]
+license = "Apache-2.0"
+keywords = ["aws", "rolesanywhere"]
+categories = ["command-line-utilities", "authentication"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
