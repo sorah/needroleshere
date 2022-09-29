@@ -87,15 +87,28 @@ impl Identity {
         let key_spki = pkcs8::spki::SubjectPublicKeyInfo::from_der(key_spki_der.as_bytes())?;
 
         let (matches, unmatches): (Vec<_>, Vec<_>) = chain.iter().partition(|i| {
-            let cert_spki = i.certificate().tbs_certificate.subject_public_key_info;
+            let cert = i.certificate();
+            let cert_spki = cert.tbs_certificate.subject_public_key_info;
+            tracing::debug!(message = "loaded certificate", cert_sub = %cert.tbs_certificate.subject, cert_iss = %cert.tbs_certificate.issuer);
+            tracing::trace!(message = "loaded certificate (detail)", key_spki = ?key_spki, cert_spki = ?cert_spki, cert_sub = %cert.tbs_certificate.subject, cert_iss = %cert.tbs_certificate.issuer);
             key_spki == cert_spki
         });
 
-        let certificate_der = matches
+        let certificate_der_maybe = matches
             .first()
-            .ok_or(crate::error::Error::IdentityCertificateNotFoundError)?
-            .der
-            .clone();
+            .ok_or(crate::error::Error::IdentityCertificateNotFoundError);
+
+        let certificate_der = match certificate_der_maybe {
+            Ok(v) => {
+                let cert = v.certificate();
+                tracing::debug!(message = "end entity certificate found", cert_sub = %cert.tbs_certificate.subject, cert_iss = %cert.tbs_certificate.issuer);
+                v.der.to_owned()
+            }
+            Err(e) => {
+                tracing::error!(message = "Couldn't find a certificate from given chain for the given private key", key_spki = ?key_spki);
+                return Err(e);
+            }
+        };
         let intermediates: Vec<_> = unmatches.iter().map(|v| (*v).clone()).collect();
 
         let identity = Self {
@@ -117,8 +130,21 @@ impl Identity {
         certificate_file_paths: &[&str],
     ) -> Result<Self, crate::error::Error> {
         tracing::trace!(message = "from_file", private_key_path = ?private_key_path, certificate_file_paths = ?certificate_file_paths);
-        let key_file = tokio::fs::read_to_string(private_key_path).await?;
-        let pkey = PrivateKey::from_private_key_pem(&key_file)?;
+
+        let key_file = match tokio::fs::read_to_string(private_key_path).await {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!(message = "failed to load private key", path = %private_key_path, error = ?e);
+                return Err(e.into());
+            }
+        };
+        let pkey = match PrivateKey::from_private_key_pem(&key_file) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!(message = "failed to parse private key", path = %private_key_path, error = ?e);
+                return Err(e);
+            }
+        };
 
         let mut chain = Vec::new();
         for file in certificate_file_paths.iter() {

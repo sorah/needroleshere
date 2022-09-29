@@ -18,8 +18,11 @@ pub enum Error {
     #[error("Unsupported certificate error; other reason: {0}")]
     UnsupportedCertificateError(String),
 
-    #[error("Unauthorized")]
-    Unauthorized,
+    #[error("Unauthorized ({0})")]
+    Unauthorized(&'static str),
+
+    #[error("Bad Request ({0})")]
+    BadRequest(String),
 
     #[error(transparent)]
     StdIoError(#[from] std::io::Error),
@@ -68,4 +71,38 @@ pub enum Error {
 
     #[error("API Error ({0}): {1}")]
     ApiError(reqwest::StatusCode, String),
+}
+
+impl Error {
+    pub fn error_status(&self) -> axum::http::StatusCode {
+        use axum::http::StatusCode;
+        match *self {
+            Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    pub fn error_string_for_user(&self) -> &str {
+        match *self {
+            Self::Unauthorized(_) => "unauthorized",
+            Self::BadRequest(_) => "bad-request",
+            _ => "internal-error",
+        }
+    }
+}
+
+impl axum::response::IntoResponse for Error {
+    fn into_response(self) -> axum::response::Response {
+        if self.error_status().is_client_error() {
+            tracing::warn!(message = "returning error to client", error = ?&self);
+        } else {
+            tracing::error!(message = "returning error to client", error = ?&self);
+        }
+        (
+            self.error_status(),
+            self.error_string_for_user().to_string(),
+        )
+            .into_response()
+    }
 }

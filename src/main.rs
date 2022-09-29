@@ -23,6 +23,8 @@ enum Commands {
     Bind(needroleshere::cmd::bind::BindArgs),
     /// Delete a role binding
     Unbind(needroleshere::cmd::unbind::UnbindArgs),
+    /// Start a server mode
+    Serve(needroleshere::cmd::serve::ServeArgs),
 }
 
 impl TryInto<needroleshere::config::Config> for &Cli {
@@ -55,6 +57,10 @@ fn main() -> Result<(), anyhow::Error> {
             enable_tracing(false);
             needroleshere::cmd::unbind::run(&(&cli).try_into()?, params)?;
         }
+        Commands::Serve(params) => {
+            enable_tracing(false);
+            needroleshere::cmd::serve::run(&(&cli).try_into()?, params)?;
+        }
     };
     Ok(())
 }
@@ -66,6 +72,9 @@ fn enable_tracing(stderr: bool) {
             .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
             .init();
     } else {
+        if std::env::var_os("RUST_LOG").is_none() {
+            std::env::set_var("RUST_LOG", "info");
+        }
         tracing_subscriber::fmt::init();
     }
 }

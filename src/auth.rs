@@ -1,6 +1,11 @@
 //! Authentication for clients of credential provider implementation
 
-pub(crate) struct AccessToken<'a> {
+const UNAUTHORIZED_TOKEN: &str = "malformed access token";
+const UNAUTHORIZED_TOKEN_B64: &str = "malformed access token (b64)";
+const UNAUTHORIZED_TOKEN_WRONG: &str = "access token is wrong";
+
+#[derive(Clone)]
+pub struct AccessToken<'a> {
     pub(crate) binding_name: &'a str,
     /// base64url encoded secret
     secret: &'a str,
@@ -23,17 +28,28 @@ impl<'a> AccessToken<'a> {
     }
 
     pub(crate) fn parse(value: &'a str) -> Result<Self, crate::error::Error> {
+        let _span = tracing::debug_span!("access_token_parse").entered();
+        tracing::trace!(message = "parsing a token", len = ?(value.len()));
         if !value.starts_with("needroleshere.") {
-            return Err(crate::error::Error::Unauthorized);
+            return Err(crate::error::Error::Unauthorized(UNAUTHORIZED_TOKEN));
         }
         let start = value.find('.').unwrap();
+        tracing::trace!(message = "found a prefix", start = ?start);
+
         let mut contents = value
             .get(start + 1..)
-            .ok_or(crate::error::Error::Unauthorized)?
+            .ok_or(crate::error::Error::Unauthorized(UNAUTHORIZED_TOKEN))?
             .splitn(2, '.');
 
-        let binding_name = contents.next().ok_or(crate::error::Error::Unauthorized)?;
-        let secret = contents.next().ok_or(crate::error::Error::Unauthorized)?;
+        let binding_name = contents
+            .next()
+            .ok_or(crate::error::Error::Unauthorized(UNAUTHORIZED_TOKEN))?;
+        tracing::trace!(message = "found a name", binding_name = ?binding_name);
+
+        let secret = contents
+            .next()
+            .ok_or(crate::error::Error::Unauthorized(UNAUTHORIZED_TOKEN))?;
+        tracing::trace!(message = "found a secret", len = ?secret.len());
 
         Ok(Self {
             binding_name,
@@ -45,6 +61,8 @@ impl<'a> AccessToken<'a> {
         use base64ct::Encoding;
         use sha2::Digest;
 
+        tracing::trace!("token verification...");
+
         let mut expected_secret_dgst0 = digest::Output::<sha2::Sha384>::default();
         base64ct::Base64UrlUnpadded::decode(expected_secret_hash, &mut expected_secret_dgst0)
             .map_err(|_| {
@@ -53,14 +71,14 @@ impl<'a> AccessToken<'a> {
         let expected_secret_dgst = digest::CtOutput::<sha2::Sha384>::new(expected_secret_dgst0);
 
         let secret_raw = base64ct::Base64UrlUnpadded::decode_vec(self.secret)
-            .map_err(|_| crate::error::Error::Unauthorized)?;
+            .map_err(|_| crate::error::Error::Unauthorized(UNAUTHORIZED_TOKEN_B64))?;
         let given_secret_dgst =
             digest::CtOutput::new(sha2::Sha384::new_with_prefix(&secret_raw).finalize());
 
         if given_secret_dgst == expected_secret_dgst {
             Ok(())
         } else {
-            Err(crate::error::Error::Unauthorized)
+            Err(crate::error::Error::Unauthorized(UNAUTHORIZED_TOKEN_WRONG))
         }
     }
 }
@@ -76,7 +94,7 @@ mod test {
 
     #[test]
     fn test_new() {
-        let ah = AccessToken::new("testrole", TEST_SECRET_B64);
+        let ah = AccessToken::new("testrole".into(), TEST_SECRET_B64.into());
         assert_eq!(ah.binding_name, "testrole");
         assert_eq!(ah.secret, TEST_SECRET_B64);
         assert_eq!(

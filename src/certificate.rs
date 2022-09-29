@@ -14,8 +14,20 @@ impl ChainItem {
 
 pub(crate) async fn load_pem_chain_file(path: &str) -> Result<Vec<ChainItem>, crate::error::Error> {
     tracing::trace!(message = "load_pem_chain_file", path = %path);
-    let content = tokio::fs::read_to_string(path).await?;
-    crate::certificate::decode_pem_chain(&content)
+    let content = match tokio::fs::read_to_string(path).await {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!(message = "failed to load_pem_chain_file", path = %path, error = ?e);
+            return Err(e.into());
+        }
+    };
+    match crate::certificate::decode_pem_chain(&content) {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            tracing::error!(message = "failed to decode_pem_chain", path = %path, error = ?e);
+            Err(e)
+        }
+    }
 }
 
 // Returns Vec<ChainItem>. The der (Vec<u8>) is guaranteed to be parseable as x509 certificate.

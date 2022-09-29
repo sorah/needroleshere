@@ -157,6 +157,14 @@ impl RoleBinding {
                 .expect("role_binding secret (raw) must be provided but none (BUG)"),
         )
     }
+
+    pub async fn create_session(
+        &self,
+        client: &crate::client::Client,
+    ) -> Result<crate::client::CreateSessionResponse, crate::error::Error> {
+        let identity = self.identity().await?;
+        client.create(&identity, &self.request).await
+    }
 }
 
 async fn remove_file_ignoring_enoent(path: std::path::PathBuf) -> std::io::Result<()> {
@@ -186,7 +194,15 @@ impl EnvironmentList {
 impl std::fmt::Display for EnvironmentList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         for (k, v) in self.inner.iter() {
-            writeln!(f, "{k}={v}")?;
+            if v.contains(' ') {
+                if v.contains('"') {
+                    panic!("EnvironmentList attempted to render values with double quote");
+                } else {
+                    writeln!(f, "{k}=\"{v}\"")?;
+                }
+            } else {
+                writeln!(f, "{k}={v}")?;
+            }
         }
         Ok(())
     }
@@ -429,14 +445,16 @@ mod test {
             ("TEST_ENV_A", "aaa".to_string()),
             ("TEST_ENV_B", "bbb".to_string()),
             ("TEST_ENV_C", "ccc".to_string()),
+            ("TEST_ENV_D", "d d d".to_string()),
         ]);
         assert_eq!(
             envlist.to_string(),
-            indoc::indoc! {"
+            indoc::indoc! {r#"
                 TEST_ENV_A=aaa
                 TEST_ENV_B=bbb
                 TEST_ENV_C=ccc
-            "}
+                TEST_ENV_D="d d d"
+            "#}
         );
     }
 }
