@@ -21,7 +21,7 @@ base16ct = { version = "0.1.1", features = ["alloc"]}
 base64ct = { version = "1.5.2", features = ["alloc"]}
 bytes = "1.2.1"
 chrono = { version = "0.4.22", features = ["serde"] }
-clap = { version = "3.2.22", features = ["cargo", "env", "derive"] }
+clap = { version = "4.0.4", features = ["cargo", "env", "derive"] }
 crypto-bigint = { version = "0.4.8", features = ["generic-array"] }
 digest = { version = "0.10.5", features = ["mac"] }
 ecdsa = { version = "0.14.8", features = ["std", "digest", "sign", "verify", "pkcs8", "pem", "hazmat"] }
