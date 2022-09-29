@@ -51,9 +51,9 @@ Server mode runs a HTTP server to act as other AWS SDK credential providers to e
 Needroleshere supports (only) launching through systemd socket activation. Configure systemd units like as follows:
 
 ```systemd
-# /etc/systemd/system/needsroleshere.service
+# /etc/systemd/system/needroleshere.service
 [Unit]
-Wants=needsrolehere.socket
+Wants=needroleshere.socket
 
 [Service]
 Type=simple
@@ -62,12 +62,15 @@ RuntimeDirectory=needroleshere
 ```
 
 ```systemd
-# /etc/systemd/system/needsroleshere.socket
+# /etc/systemd/system/needroleshere.socket
 [Socket]
-ListenStream=127.0.0.1:80
+ListenStream=127.0.0.1:7224
 FreeBind=yes
 IPAddressAllow=localhost
 IPAddressDeny=any
+
+[Install]
+WantedBy=sockets.target
 ```
 
 Specify `User=`, `Group=` as needed. 
@@ -95,7 +98,7 @@ needroleshere bind myrole \
 This will generate a configuration at `/path/to/etc/needroleshere/bindings/myrole` and a environment file at `/path/to/etc/needroleshere/env/myrole`. Treat a environment file as a secret as it includes a shared secret between Needroleshere and credentials consumer.
 
 - `--configuration-directory` is default to `$RUNTIME_DIRECTORY` if not specified.
-- Mode variants can be specified by `--mode`. For instance `--mode ecs-relative-query` for enabling `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` only.
+- Mode variants can be specified by `--mode`. For instance specify `--mode ecs-relative-query` to activate a mode uses `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` only.
 
 Running this through systemd unit is a recommended way:
 
@@ -105,7 +108,7 @@ Running this through systemd unit is a recommended way:
 Before=somethingawesome.service
 After=needroleshere.socket
 PartOf=somethingawesome.service
-Wants=needsrolehere.socket needroleshere.service
+Wants=needroleshere.socket needroleshere.service
 
 [Service]
 Type=oneshot
@@ -123,21 +126,22 @@ WantedBy=somethingawesome.service
 
 ##### Load environment file and use
 
-TBD
-
-<!--
-for example,
-
 ```systemd
 # /etc/systemd/system/somethingawesome.service
+
 [Unit]
-Wants=needroleshere-bind-somethingawesome.service
+# You can specify Wants= here instead of systemctl enable:
+# Wants=needroleshere-bind-somethingawesome.service
 
 [Service]
-CredentialFile=/run/needroleshere/env/somethingawesome
-# ...
+Type=simple
+EnvironmentFile=/run/needroleshere/env/somethingawesome
+ExecStart=...
+
+DynamicUser=yes
 ```
--->
+
+`needroleshere-bind-somethingawesome.service` and `needroleshere.socket` will be started before `somethingawesome.service` automatically. If you restart `somethingawesome.service`, `needroleshere bind` will automatically re-run to rotate a shared shared secret (thanks to `PartOf=`).
 
 ## Comparison between modes
 
@@ -174,7 +178,8 @@ fog-aws |   |   |   |   | :white_check_mark:
 - In the ECS container credentials provider mode, an endpoint uses an access token to distinguish a role binding and authenticates its consumer. Access tokens are based on shared secret generated during `needroleshere bind`.
   - a SHA-384 digest of secret is stored to a role binding data file and read from the server process, and a secret in cleartext is stored to a environment file.
   - So consider an environment file as a secret and protect it accordingly. `needroleshere bind` preserves file mode and owner of a environment file in subsequent runs for a existing role binding.
-  - Except for `-query` mode variants, `AWS_CONTAINER_AUTHORIZATION_TOKEN` where turns into HTTP `Authorization` header is used to pass an access token. `-query` mode uses HTTP URL query string instead. As a protection measure, the endpoint rejects requests with an access token passed into a query string if a corresponding role binding is configured to use non `-query` mode variants, which uses `Authorization` header.
+  - `-query` mode variants use HTTP URL query string to pass an access token instead of using `AWS_CONTAINER_AUTHORIZATION_TOKEN` where turns into HTTP `Authorization` header. As `AWS_CONTAINER_CREDENTIALS_*_URI` is not considered a secret, it might have leaked into logs in case of request failure. And as the endpoint works on HTTP GET method, it is exploitable through SSRF attacks.
+  - As a protection measure, for role bindings using `AWS_CONTAINER_AUTHORIZATION_TOKEN`, the endpoint rejects requests with an access token in HTTP query string.
 
 
 ## Caveats
@@ -195,7 +200,7 @@ fog-aws |   |   |   |   | :white_check_mark:
 Reconfigure your socket unit like the following. You need to update `--url` if you're also using `ecs-full` mode variants.
 
 ```systemd
-# /etc/systemd/system/needsroleshere.socket
+# /etc/systemd/system/needroleshere.socket
 [Socket]
 ListenStream=169.254.170.2:80
 FreeBind=yes
@@ -207,6 +212,31 @@ IPAddressAllow=169.254.170.2/32
 IPAddressDeny=any
 ```
 
+### Utilizing systemd unit template
+
+It is possible to use systemd unit template for the `needroleshere bind` service unit explained above:
+
+```systemd
+# /etc/systemd/system/needroleshere-bind@.service
+[Unit]
+Before=%i.service
+After=needroleshere.socket
+PartOf=%i.service
+Wants=needroleshere.socket
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/home/sorah/git/github.com/sorah/needroleshere/target/debug/needroleshere bind %i ... --role-arn arn:aws:iam::...:role/%i
+ExecStop=/home/sorah/git/github.com/sorah/needroleshere/target/debug/needroleshere unbind %i
+RuntimeDirectory=needroleshere
+
+[Install]
+WantedBy=%i.service
+```
+
+then `systemctl enable needroleshere-bind@somethingawesome.service` to pair with `somethingawesome.service`. 
+
 ## Development
 
 ### Server
@@ -217,7 +247,7 @@ run with systemfd and cargo-watch. the following is a shorthand to start on 127.
 ./dev/serve.sh
 ```
 
-To test credentials provider is working, use the following script; it run `needsrolehere bind` with the given argument and pass to `aws sts get-caller-identity`.
+To test credentials provider is working, use the following script; it run `needroleshere bind` with the given argument and pass to `aws sts get-caller-identity`.
 
 ```
 ./dev/roundtrip-gci.sh --region ap-northeast-1 \
