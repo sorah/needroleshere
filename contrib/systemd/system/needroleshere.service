@@ -34,7 +34,7 @@ ProtectKernelModules=yes
 ProtectKernelLogs=yes
 ProtectControlGroups=yes
 
-PrivateTmp=no
+PrivateTmp=yes
 
 [Install]
 WantedBy=multi-user.target
