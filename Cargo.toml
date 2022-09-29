@@ -23,7 +23,7 @@ chrono = { version = "0.4.22", features = ["serde"] }
 clap = { version = "3.2.22", features = ["cargo", "env", "derive"] }
 crypto-bigint = { version = "0.4.8", features = ["generic-array"] }
 digest = { version = "0.10.5", features = ["mac"] }
-ecdsa = { version = "0.14.7", features = ["std", "digest", "sign", "verify", "pkcs8", "pem", "hazmat"] }
+ecdsa = { version = "0.14.8", features = ["std", "digest", "sign", "verify", "pkcs8", "pem", "hazmat"] }
 elliptic-curve = { version = "0.12.3", features = ["arithmetic", "pem", "alloc", "std", "sec1", "hazmat"] }
 generic-array = "0.14.6"
 http = "0.2.8"

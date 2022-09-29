@@ -80,17 +80,7 @@ where
 
     // try_sign_digest_rfc6979
     let src: [u8; 32] = digest.finalize_fixed().into(); // GenericArray
-
-    // TODO: use prehash_to_field_bytes once https://github.com/RustCrypto/signatures/pull/547
-    // shipped
-    // let prehash = C::prehash_to_field_bytes(&src)?;
-    let prehash: ecdsa::elliptic_curve::FieldBytes<C> = {
-        let src_len = src.len();
-        let mut buf = ecdsa::elliptic_curve::generic_array::GenericArray::default();
-        let len = buf.len();
-        buf.as_mut_slice()[(len - src_len)..].copy_from_slice(&src);
-        buf
-    };
+    let prehash = C::prehash_to_field_bytes(&src)?;
 
     Ok(secret_scalar
         .try_sign_prehashed_rfc6979::<C::Digest>(prehash, &ad)?
