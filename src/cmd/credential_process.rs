@@ -5,7 +5,7 @@ pub struct CredentialProcessArgs {
     /// Certificates with RSA, P-256, or P-384 key are supported.
     /// A certificate file may include intermediate CA certificate(s); informally known as fullchain.pem.
     #[clap(long)]
-    certificate: String,
+    certificate: String, // TODO: make this Vec
     /// Path to a private key in PEM corresponding to a certificate
     #[clap(long)]
     private_key: String,
@@ -39,7 +39,7 @@ pub struct CredentialProcessArgs {
 pub struct CredentialProcessResponse {
     pub version: i64,
     pub access_key_id: String,
-    pub secret_access_key: String,
+    pub secret_access_key: crate::client::AwsSecretAccessKey,
     pub session_token: String,
     pub expiration: chrono::DateTime<chrono::Utc>,
 }

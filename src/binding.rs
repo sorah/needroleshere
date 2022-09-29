@@ -13,7 +13,7 @@ pub struct RoleBinding {
     pub mode: EnvironmentMode,
 
     #[serde(skip)]
-    pub secret: Option<String>,
+    pub secret: Option<secrecy::SecretString>,
 }
 
 fn validate_name(name: &str) -> Result<(), crate::error::Error> {
@@ -60,11 +60,13 @@ impl RoleBinding {
             ));
         }
 
-        let mut secret_raw = [0u8; 64];
+        let mut secret_raw = secrecy::zeroize::Zeroizing::new([0u8; 64]);
         rand::thread_rng().fill(&mut secret_raw[..]);
-        let secret_dgst = sha2::Sha384::digest(secret_raw);
+        let secret_dgst = sha2::Sha384::digest(&secret_raw);
         let secret_hash = base64ct::Base64UrlUnpadded::encode_string(&secret_dgst);
-        let secret = base64ct::Base64UrlUnpadded::encode_string(&secret_raw);
+        let secret = secrecy::Secret::new(base64ct::Base64UrlUnpadded::encode_string(
+            secret_raw.as_ref(),
+        ));
 
         Ok(Self {
             name,
@@ -160,11 +162,13 @@ impl RoleBinding {
     }
 
     pub(crate) fn access_token(&self) -> crate::auth::AccessToken<'_> {
+        use secrecy::ExposeSecret;
         crate::auth::AccessToken::new(
             &self.name,
             self.secret
                 .as_ref()
-                .expect("role_binding secret (raw) must be provided but none (BUG)"),
+                .expect("role_binding secret (raw) must be provided but none (BUG)")
+                .expose_secret(),
         )
     }
 
@@ -332,6 +336,7 @@ mod test {
     use super::*;
 
     use base64ct::Encoding;
+    use secrecy::ExposeSecret;
     use std::os::unix::prelude::PermissionsExt;
 
     fn make_test_role_binding() -> RoleBinding {
@@ -358,7 +363,8 @@ mod test {
     fn test_role_binding_new() {
         let b = make_test_role_binding();
         assert!(b.secret.is_some());
-        base64ct::Base64UrlUnpadded::decode_vec(b.secret.as_ref().unwrap()).unwrap();
+        base64ct::Base64UrlUnpadded::decode_vec(b.secret.as_ref().unwrap().expose_secret())
+            .unwrap();
         base64ct::Base64UrlUnpadded::decode_vec(&b.secret_hash).unwrap();
     }
 

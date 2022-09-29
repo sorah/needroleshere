@@ -34,12 +34,26 @@ pub struct AssumedRoleUser {
     pub assumed_role_id: String,
 }
 
+/// This type is marked as secrecy::SerializableSecret intentionally, as Needroleshere is a tool to
+/// vend secrets.
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, zeroize::Zeroize, zeroize::ZeroizeOnDrop,
+)]
+pub struct AwsSecretAccessKeyInner(String);
+impl secrecy::SerializableSecret for AwsSecretAccessKeyInner {}
+impl secrecy::CloneableSecret for AwsSecretAccessKeyInner {}
+impl secrecy::DebugSecret for AwsSecretAccessKeyInner {}
+
+/// This type has secrecy::SerializableSecret intentionally, as Needroleshere is a tool to
+/// vend secrets.
+pub type AwsSecretAccessKey = secrecy::Secret<AwsSecretAccessKeyInner>;
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Credentials {
     pub access_key_id: String,
     pub expiration: chrono::DateTime<chrono::Utc>,
-    pub secret_access_key: String, // TODO: mark as sensitive value
+    pub secret_access_key: AwsSecretAccessKey,
     pub session_token: String,
 }
 

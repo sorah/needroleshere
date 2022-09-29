@@ -40,7 +40,7 @@ async fn healthz() -> axum::response::Result<(axum::http::StatusCode, &'static s
 #[serde(rename_all = "PascalCase")]
 pub struct GetEcsCredentialsResponse {
     access_key_id: String,
-    secret_access_key: String,
+    secret_access_key: crate::client::AwsSecretAccessKey,
     token: Option<String>,
     expiration: Option<chrono::DateTime<chrono::Utc>>,
 }
@@ -58,11 +58,14 @@ async fn get_ecs_credentials(
     use tracing::Instrument;
     let span = tracing::info_span!("get_ecs_credentials");
     async move {
-        let at = match crate::auth::AccessToken::parse(&bearer) {
-            Ok(v) => v,
-            Err(e) => {
-                tracing::warn!(message = "ECS Credentials Provider endpoint received a invalid token", rejected = true, error = ?e);
-                return Err(e);
+        let at = {
+            use secrecy::ExposeSecret;
+            match crate::auth::AccessToken::parse(bearer.expose_secret().as_ref()) {
+                Ok(v) => v,
+                Err(e) => {
+                    tracing::warn!(message = "ECS Credentials Provider endpoint received a invalid token", rejected = true, error = ?e);
+                    return Err(e);
+                }
             }
         };
 
@@ -140,7 +143,7 @@ enum BearerSource {
     #[allow(dead_code)]
     Never,
 }
-struct ExtractBearer(BearerSource, String);
+struct ExtractBearer(BearerSource, secrecy::SecretString);
 
 const BEARER_PREFIX: &str = "bearer";
 const ACCESS_TOKEN: &str = "access_token";
@@ -196,11 +199,17 @@ where
             )),
             (Some(v), None) => {
                 tracing::trace!("Extracted bearer token from Authorization header");
-                Ok(Self(BearerSource::Header, v.to_string()))
+                Ok(Self(
+                    BearerSource::Header,
+                    secrecy::Secret::new(v.to_string()),
+                ))
             }
             (None, Some(v)) => {
                 tracing::trace!("Extracted bearer token from query string");
-                Ok(Self(BearerSource::Query, v.to_string()))
+                Ok(Self(
+                    BearerSource::Query,
+                    secrecy::Secret::new(v.to_string()),
+                ))
             }
         }
     }
