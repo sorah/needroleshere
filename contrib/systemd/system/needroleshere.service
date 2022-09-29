@@ -1,0 +1,42 @@
+[Unit]
+Description=Needroleshere, yet another AWS IAM Roles Anywhere helper
+Documentation=https://github.com/sorah/needroleshere
+Wants=needroleshere.socket
+
+[Service]
+Type=simple
+
+EnvironmentFile=/etc/default/needroleshere
+
+ExecStart=/usr/bin/needroleshere serve
+
+Restart=always
+RestartSec=3s
+
+RuntimeDirectory=needroleshere
+RuntimeDirectoryPreserve=no
+
+DynamicUser=yes
+User=needroleshere
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+ProtectSystem=full
+ProtectClock=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+
+PrivateTmp=no
+
+[Install]
+WantedBy=multi-user.target
+
+# vim: ft=systemd

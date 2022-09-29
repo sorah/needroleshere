@@ -7,22 +7,18 @@ This tool is a helper program for AWS IAM Roles Anywhere to obtain credentials u
 
 ## Install
 
-`cargo build --release --locked` (not released yet)
-
-<!--
 - Cargo: `cargo install needroleshere`
-- Arch: `yay -Sy needroleshere`
-- Debian/Ubuntu:
--->
+- Arch: `yay -Sy needroleshere` <sup>[[AUR](https://aur.archlinux.org/packages/needroleshere)]</sup>
+- Debian/Ubuntu: https://github.com/nkmideb/needroleshere ([nekomit-originals repo](https://sorah.jp/packaging/debian/))
 
 ## Usage
 
 Needroleshere offers the following modes:
 
 - `process-credentials`: Process credentials provider mode
-- `server` + `ecs-full`: Container credentials provider mode using `AWS_CONTAINER_CREDENTIALS_FULL_URI` + `AWS_CONTAINER_AUTHORIZATION_TOKEN` 
+- `server` + `ecs-full`: Container credentials provider mode using `AWS_CONTAINER_CREDENTIALS_FULL_URI` + `AWS_CONTAINER_AUTHORIZATION_TOKEN`
 - `server` + `ecs-full-query`: Container credentials provider mode using `AWS_CONTAINER_CREDENTIALS_FULL_URI`
-- `server` + `ecs-relative`: Container credentials provider mode using `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` + `AWS_CONTAINER_AUTHORIZATION_TOKEN` 
+- `server` + `ecs-relative`: Container credentials provider mode using `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` + `AWS_CONTAINER_AUTHORIZATION_TOKEN`
 - `server` + `ecs-relative-query`: Container credentials provider mode using `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`
 
 Comparisons explained later.
@@ -73,7 +69,7 @@ IPAddressDeny=any
 WantedBy=sockets.target
 ```
 
-Specify `User=`, `Group=` as needed. 
+Specify `User=`, `Group=` as needed. The example unit files in full (which listens on `196.254.170.2:80`) is available under [./contrib/systemd](./contrib/systemd).
 
 #### Use as ECS container credentials provider
 
