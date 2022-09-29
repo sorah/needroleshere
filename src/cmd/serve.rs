@@ -68,6 +68,11 @@ async fn get_ecs_credentials(
 
         let binding = match crate::binding::RoleBinding::load(&config, at.binding_name).await {
             Ok(v) => v,
+            Err(crate::error::Error::ConfigError(e)) => {
+                tracing::warn!(message = "ECS Credentials Provider endpoint received a invalid token (invalid binding)", rejected = true, binding_name=?at.binding_name, config_dir=?config.config_dir(), config_error = ?e);
+                return Err(crate::error::Error::Unauthorized(UNAUTHORIZED_TOKEN_BINDING_NOT_FOUND));
+            }
+
             Err(crate::error::Error::StdIoError(e))  if e.kind() == std::io::ErrorKind::NotFound => {
                 tracing::warn!(message = "ECS Credentials Provider endpoint received a invalid token (binding not found)", rejected = true, binding_name=?at.binding_name, config_dir=?config.config_dir(), error = ?e);
                 return Err(crate::error::Error::Unauthorized(UNAUTHORIZED_TOKEN_BINDING_NOT_FOUND));

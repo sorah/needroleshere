@@ -17,18 +17,26 @@ pub struct RoleBinding {
 }
 
 fn validate_name(name: &str) -> Result<(), crate::error::Error> {
-    if name.contains('.') {
+    if name.is_empty() {
         return Err(crate::error::Error::ConfigError(
-            "binding name cannot include '.' (dot)".to_string(),
+            "binding name cannot be empty".to_string(),
+        ));
+    }
+    if !name.is_ascii() {
+        return Err(crate::error::Error::ConfigError(
+            "binding name must be consists of [a-zA-Z0-9@-]".to_string(),
         ));
     }
 
-    if name.find(std::path::MAIN_SEPARATOR).is_some() {
+    let invalid = name.bytes().any(|c| {
+        !((b'a'..=b'z').contains(&c) || (b'A'..=b'Z').contains(&c) || c == b'@' || c == b'-')
+    });
+
+    if invalid {
         return Err(crate::error::Error::ConfigError(
-            "binding name cannot include path separator".to_string(),
+            "binding name must be consists of [a-zA-Z0-9@-]".to_string(),
         ));
     }
-    // TODO: reject non-ascii
 
     Ok(())
 }
@@ -73,6 +81,8 @@ impl RoleBinding {
         config: &crate::config::Config,
         name: &str,
     ) -> Result<Self, crate::error::Error> {
+        validate_name(name)?;
+
         let binding_json = tokio::fs::read(config.path_for_binding(name)).await?;
         Ok(serde_json::from_str(
             std::str::from_utf8(&binding_json).map_err(|_| {
@@ -325,8 +335,12 @@ mod test {
     use std::os::unix::prelude::PermissionsExt;
 
     fn make_test_role_binding() -> RoleBinding {
+        make_test_role_binding_with_name("testrole").unwrap()
+    }
+
+    fn make_test_role_binding_with_name(name: &str) -> Result<RoleBinding, crate::error::Error> {
         RoleBinding::new(
-            "testrole".to_string(),
+            name.to_string(),
             vec!["".to_string()],
             "".to_string(),
             EnvironmentMode::Empty(EnvironmentOpts::default()),
@@ -338,7 +352,6 @@ mod test {
                 profile_arn: "".to_string(),
             },
         )
-        .unwrap()
     }
 
     #[test]
@@ -347,6 +360,55 @@ mod test {
         assert!(b.secret.is_some());
         base64ct::Base64UrlUnpadded::decode_vec(b.secret.as_ref().unwrap()).unwrap();
         base64ct::Base64UrlUnpadded::decode_vec(&b.secret_hash).unwrap();
+    }
+
+    #[test]
+    fn test_role_binding_new_allow_at_dash() {
+        let r = make_test_role_binding_with_name("this@is-okay");
+        assert!(r.is_ok());
+    }
+
+    #[test]
+    fn test_role_binding_new_reject_empty() {
+        let r = make_test_role_binding_with_name("");
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn test_role_binding_new_reject_space() {
+        let r = make_test_role_binding_with_name("invalid role");
+        assert!(r.is_err());
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_role_binding_new_reject_slash() {
+        let r = make_test_role_binding_with_name("invalid/role");
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn test_role_binding_new_reject_plus() {
+        let r = make_test_role_binding_with_name("invalid+role");
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn test_role_binding_new_reject_underscore() {
+        let r = make_test_role_binding_with_name("invalid_role");
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn test_role_binding_new_reject_tilde() {
+        let r = make_test_role_binding_with_name("invalid~role");
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn test_role_binding_new_reject_nonascii() {
+        let r = make_test_role_binding_with_name("暁山瑞希");
+        assert!(r.is_err());
     }
 
     #[test]
