@@ -116,7 +116,10 @@ RemainAfterExit=yes
 # use of --no-validate is recommended if you run `bind` in a systemd unit
 ExecStart=/usr/bin/needroleshere bind somethingawesome --no-validate ...
 ExecStop=/usr/bin/needroleshere unbind somethingawesome
-RuntimeDirectory=needroleshere
+
+# Can't use RuntimeDirectory here
+# https://github.com/systemd/systemd/issues/5394
+Environment=RUNTIME_DIRECTORY=/run/needsrolehere
 
 [Install]
 WantedBy=somethingawesome.service
@@ -137,8 +140,6 @@ WantedBy=somethingawesome.service
 Type=simple
 EnvironmentFile=/run/needroleshere/env/somethingawesome
 ExecStart=...
-
-DynamicUser=yes
 ```
 
 `needroleshere-bind-somethingawesome.service` and `needroleshere.socket` will be started before `somethingawesome.service` automatically. If you restart `somethingawesome.service`, `needroleshere bind` will automatically re-run to rotate a shared shared secret (thanks to `PartOf=`).
@@ -193,49 +194,10 @@ fog-aws |   |   |   |   | :white_check_mark:
 - Server mode reads certificates and a key per request. This allows certificate renewal without reloading/restarting the server process.
 - Note that [systemd.exec](https://www.freedesktop.org/software/systemd/man/systemd.exec.html#EnvironmentFile=) states that using EnvironmentFile= for credentials is discouraged.
 
-## Configuration Examples
+## Example configurations of systemd units
 
-### Setup for `ecs-relative` mode variants
+See [./contrib/systemd/](./contrib/systemd/) for full example confiugration of systemd units.
 
-Reconfigure your socket unit like the following. You need to update `--url` if you're also using `ecs-full` mode variants.
-
-```systemd
-# /etc/systemd/system/needroleshere.socket
-[Socket]
-ListenStream=169.254.170.2:80
-FreeBind=yes
-
-ExecStartPre=-/bin/ip address add 169.254.170.2/32 dev lo
-
-IPAddressAllow=localhost
-IPAddressAllow=169.254.170.2/32
-IPAddressDeny=any
-```
-
-### Utilizing systemd unit template
-
-It is possible to use systemd unit template for the `needroleshere bind` service unit explained above:
-
-```systemd
-# /etc/systemd/system/needroleshere-bind@.service
-[Unit]
-Before=%i.service
-After=needroleshere.socket
-PartOf=%i.service
-Wants=needroleshere.socket
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/home/sorah/git/github.com/sorah/needroleshere/target/debug/needroleshere bind %i ... --role-arn arn:aws:iam::...:role/%i
-ExecStop=/home/sorah/git/github.com/sorah/needroleshere/target/debug/needroleshere unbind %i
-RuntimeDirectory=needroleshere
-
-[Install]
-WantedBy=%i.service
-```
-
-then `systemctl enable needroleshere-bind@somethingawesome.service` to pair with `somethingawesome.service`. 
 
 ## Development
 

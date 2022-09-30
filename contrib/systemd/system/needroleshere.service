@@ -1,20 +1,20 @@
 [Unit]
 Description=Needroleshere, yet another AWS IAM Roles Anywhere helper
 Documentation=https://github.com/sorah/needroleshere
-Wants=needroleshere.socket
+After=needroleshere-dir.service
+Wants=needroleshere.socket needroleshere-dir.service
 
 [Service]
 Type=simple
 
-EnvironmentFile=/etc/default/needroleshere
+EnvironmentFile=-/etc/default/needroleshere
 
 ExecStart=/usr/bin/needroleshere serve
 
 Restart=always
 RestartSec=3s
 
-RuntimeDirectory=needroleshere
-RuntimeDirectoryPreserve=no
+Environment=RUNTIME_DIRECTORY=/run/needroleshere
 
 DynamicUser=yes
 User=needroleshere

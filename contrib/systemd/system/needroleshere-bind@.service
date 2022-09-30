@@ -1,0 +1,18 @@
+# /etc/systemd/system/needroleshere-bind@.service
+[Unit]
+PartOf=%i.service
+Before=%i.service
+After=needroleshere.socket needroleshere-dir.service
+Wants=needroleshere.socket needroleshere-dir.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# example. adjust here for your use case
+ExecStart=/usr/bin/needroleshere bind %i ... --role-arn arn:aws:iam::...:role/%i
+ExecStop=/usr/bin/needroleshere unbind %i
+
+Environment=RUNTIME_DIRECTORY=/run/needroleshere
+
+[Install]
+WantedBy=%i.service

@@ -1,0 +1,16 @@
+[Unit]
+Description=Needroleshere, yet another AWS IAM Roles Anywhere helper (configuration directory)
+Documentation=https://github.com/sorah/needroleshere
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+
+RuntimeDirectory=needroleshere
+RuntimeDirectoryPreserve=no
+
+DynamicUser=yes
+User=needroleshere
+
+# vim: ft=systemd
