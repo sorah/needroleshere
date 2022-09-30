@@ -11,24 +11,54 @@ pub async fn run(config: &crate::config::Config, args: &ServeArgs) -> Result<(),
     Ok(())
 }
 
+pub fn make_router(
+    arc_config: std::sync::Arc<crate::config::Config>,
+    arc_client: std::sync::Arc<crate::client::Client>,
+) -> axum::Router {
+    axum::Router::new()
+        .route("/healthz", axum::routing::get(healthz))
+        .route("/ecs/credentials", axum::routing::get(get_ecs_credentials))
+        .layer(axum::extract::Extension(arc_config))
+        .layer(axum::extract::Extension(arc_client))
+}
+
 pub async fn serve(config: crate::config::Config, args: &ServeArgs) -> Result<(), anyhow::Error> {
     let client = crate::client::Client::new(args.region.as_ref().map(|v| v.as_ref()))?;
 
-    let app = axum::Router::new()
-        .route("/healthz", axum::routing::get(healthz))
-        .route("/ecs/credentials", axum::routing::get(get_ecs_credentials))
-        .layer(axum::extract::Extension(std::sync::Arc::new(config)))
-        .layer(axum::extract::Extension(std::sync::Arc::new(client)));
+    let arc_config = std::sync::Arc::new(config);
+    let arc_client = std::sync::Arc::new(client);
 
-    if let Some(l) = listenfd::ListenFd::from_env().take_tcp_listener(0)? {
-        tracing::info!(message="Starting a server", listener=?l);
-        axum::Server::from_tcp(l)?
-    } else {
+    let mut fds = listenfd::ListenFd::from_env();
+
+    let servers = if fds.len() == 0 {
         tracing::warn!("Using 127.0.0.1:3000 to listen because sd_listen_fds parameters are missing (use systemd.socket to control listen configuration)");
-        axum::Server::bind(&std::net::SocketAddr::from(([127, 0, 0, 1], 3000)))
+        vec![axum::Server::bind(&std::net::SocketAddr::from((
+            [127, 0, 0, 1],
+            3000,
+        )))]
+    } else {
+        let mut ls = Vec::new();
+        for idx in 0..fds.len() {
+            let l = fds.take_tcp_listener(idx)?.unwrap();
+            tracing::info!(message="Starting a server", idx=?idx, listener=?l);
+            ls.push(axum::Server::from_tcp(l)?);
+        }
+        ls
+    };
+
+    let services: Vec<_> = servers
+        .into_iter()
+        .map(|v| {
+            tokio::spawn(
+                v.serve(make_router(arc_config.clone(), arc_client.clone()).into_make_service()),
+            )
+        })
+        .collect();
+
+    for service in services {
+        service.await.unwrap().unwrap();
     }
-    .serve(app.into_make_service())
-    .await?;
+
     Ok(())
 }
 
