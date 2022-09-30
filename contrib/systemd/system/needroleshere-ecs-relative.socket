@@ -1,0 +1,20 @@
+[Unit]
+Description=Needroleshere, yet another AWS IAM Roles Anywhere helper (ecs-relative socket)
+Documentation=https://github.com/sorah/needroleshere
+
+[Socket]
+Service=needroleshere.service
+ListenStream=169.254.170.2:80
+
+FreeBind=yes
+
+ExecStartPre=-/bin/ip address add 169.254.170.2/32 dev lo
+
+IPAddressAllow=localhost
+IPAddressAllow=169.254.170.2/32
+IPAddressDeny=any
+
+[Install]
+WantedBy=sockets.target
+
+# vim: ft=systemd
