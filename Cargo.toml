@@ -1,7 +1,7 @@
 [package]
 name = "needroleshere"
 description = "Yet another AWS IAM Roles Anywhere helper"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Sorah Fukumori <her@sorah.jp>"]
 license = "Apache-2.0"
