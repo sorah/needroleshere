@@ -3,6 +3,10 @@
 ```
 cp system/* /etc/systemd/system/
 cp default/* /etc/default/
+
+systemctl daemon-reload
+systemctl enable --now needroleshere.socket
+systemctl enable --now needroleshere-ecs-relative.socket
 ```
 
 ## Tricks
@@ -19,20 +23,11 @@ To workaround this problem, we need a dedicated systemd unit to hold `RuntimeDir
 
 ### Setup for `ecs-relative` mode variants
 
-Reconfigure your socket unit like the following. You need to update `--url` if you're also using `ecs-full` mode variants.
+Enable and start:
 
-```systemd
-# /etc/systemd/system/needroleshere.socket
-[Socket]
-ListenStream=169.254.170.2:80
-FreeBind=yes
+- [./systemd/needroleshere-ecs-relative.socket](./systemd/needroleshere-ecs-relative.socket)
 
-ExecStartPre=-/bin/ip address add 169.254.170.2/32 dev lo
-
-IPAddressAllow=localhost
-IPAddressAllow=169.254.170.2/32
-IPAddressDeny=any
-```
+You can use this socket unit simultaneously with the primary needroleshere.socket.
 
 ### Utilizing systemd unit template
 

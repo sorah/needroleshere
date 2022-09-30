@@ -1,16 +1,12 @@
 [Unit]
-Description=Needroleshere, yet another AWS IAM Roles Anywhere helper (socket)
+Description=Needroleshere, yet another AWS IAM Roles Anywhere helper (primary socket)
 Documentation=https://github.com/sorah/needroleshere
 
 [Socket]
-ListenStream=169.254.170.2:80
-
+ListenStream=127.0.0.1:7224
 FreeBind=yes
 
-ExecStartPre=-/bin/ip address add 169.254.170.2/32 dev lo
-
 IPAddressAllow=localhost
-IPAddressAllow=169.254.170.2/32
 IPAddressDeny=any
 
 [Install]
