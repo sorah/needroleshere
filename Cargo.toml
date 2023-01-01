@@ -15,7 +15,7 @@ rust-version = "1.59"
 
 [dependencies]
 anyhow = "1.0.65"
-async-trait = "0.1.57"
+async-trait = "0.1.60"
 axum = "0.5.16"
 base16ct = { version = "0.1.1", features = ["alloc"]}
 base64ct = { version = "1.5.2", features = ["alloc"]}
