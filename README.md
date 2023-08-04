@@ -161,16 +161,20 @@ AWS SDK for JavaScript 2.x | :white_check_mark: | :white_check_mark: | :white_ch
 AWS SDK for .NET 3.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 AWS SDK for PHP 3.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 AWS SDK for Python (Boto3) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
-AWS SDK for Ruby 3.x | :white_check_mark: |   |   |   | :white_check_mark:
+AWS SDK for Ruby 3.x | :white_check_mark: |  :white_check_mark: *1 |  :white_check_mark: *1 |  :white_check_mark: *1  | :white_check_mark:
 AWS SDK for Rust (preview) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 Rusoto | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 minio-go |   | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 fog-aws |   |   |   |   | :white_check_mark:
 
+_*1 Ruby v3: aws-sdk-core 3.171.0 (released 2023-03) gained support of ecs-full, ecs-full-query, and ecs-relative mode https://github.com/aws/aws-sdk-ruby/pull/2837_
+
 `process-credentials` is most preferred and easy way, and use `ecs-relative-query` as a last resort option.
 
 - `ecs-*` type has `-query` variants to prevent using `AWS_CONTAINER_AUTHORIZATION_TOKEN` as some SDKs don't support. Note that -query variants don't provide SSRF protection.
 - `ecs-relative*` mode requires a special server process setup to listen on `169.254.170.2:80`.
+
+
 
 ## Security Model
 
