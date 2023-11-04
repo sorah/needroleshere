@@ -54,7 +54,6 @@ impl PrivateKey {
 
     pub fn spki_der(&self) -> Result<pkcs8::der::Document, crate::error::Error> {
         use pkcs8::EncodePublicKey as _;
-        use rsa::pkcs8::EncodePublicKey as _;
 
         match *self {
             Self::Rsa(ref pkey) => {
@@ -158,13 +157,10 @@ impl Identity {
         Self::from_chain_and_key(&chain, pkey)
     }
 
+    #[inline]
     pub fn validate(&self) -> Result<(), crate::error::Error> {
-        if self.certificate().tbs_certificate.serial_number.len() > x509_cert::der::Length::new(20)
-        {
-            return Err(crate::error::Error::UnsupportedCertificateError(
-                "Serial number is too long (supported up to 20 octets)".to_string(),
-            ));
-        }
+        // Formerly SerialNumber length was validated here, but it is now validated within
+        // x509_cert crate, so this function resulting empty
         Ok(())
     }
 
@@ -176,8 +172,9 @@ impl Identity {
 
     pub fn serial_number_string(&self) -> String {
         // XXX: crypto-bigint doesn't have decimal representation formatter?
-        let bytes = self.certificate().tbs_certificate.serial_number.as_bytes();
-        num_bigint::BigUint::from_bytes_be(bytes).to_str_radix(10)
+        let cert = self.certificate();
+        let sn = cert.tbs_certificate.serial_number.as_bytes();
+        num_bigint::BigUint::from_bytes_be(sn).to_str_radix(10)
         // let mut slice = [0u8; 24];
         // slice[(24 - bytes.len())..].copy_from_slice(bytes);
 
@@ -188,7 +185,6 @@ impl Identity {
 #[cfg(test)]
 mod test {
     use rsa::pkcs1::EncodeRsaPrivateKey;
-    use sec1::EncodeEcPrivateKey;
     use std::ops::Deref;
 
     use super::*;
@@ -214,14 +210,24 @@ mod test {
     }
 
     #[test]
-    fn test_pkey_ec_p256() {
+    fn test_pkey_ec_p256_roundtrip() {
         let key = PrivateKey::from_private_key_pem(KEY_EC).unwrap();
         let pkey = match key {
             PrivateKey::Ec(PrivateKeyEc::P256(pkey)) => pkey,
             _ => panic!("key is not PrivateKeyEc::P256"),
         };
 
-        let pem = pkey.to_sec1_pem(sec1::LineEnding::LF).unwrap();
+        // elliptic_curve::SecretKey::to_sec1_pem (to_sec1_der) lacks sec1::EcPrivateKey#parameters (resulting None)
+        // while sec1::EncodeEcPrivateKey writes a named curve
+        // https://github.com/RustCrypto/traits/blob/128d4e6df73f9ec528e0b0a6dd88a9e6917aa221/elliptic-curve/src/secret_key.rs#L200
+        // https://github.com/RustCrypto/formats/blob/ce9d249e5ca11a7b4af0d2425fefe0e9355ec4f4/sec1/src/traits.rs#L113
+        let pem =
+            <elliptic_curve::SecretKey<p256::NistP256> as sec1::EncodeEcPrivateKey>::to_sec1_pem(
+                &pkey,
+                sec1::LineEnding::LF,
+            )
+            .unwrap();
+        //let pem = pkey.to_sec1_pem(sec1::LineEnding::LF).unwrap();
         assert_eq!(pem.deref(), KEY_EC);
     }
 

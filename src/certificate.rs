@@ -119,12 +119,19 @@ mod test {
 
         for name in subject {
             let frag = name.0.get(0).unwrap();
+            // id-at-commonName
             if frag.oid == "2.5.4.3".parse().unwrap() {
                 let value = match frag.value.tag() {
-                    x509_cert::der::Tag::Utf8String => frag.value.utf8_string().unwrap().as_str(),
-                    x509_cert::der::Tag::PrintableString => {
-                        frag.value.printable_string().unwrap().as_str()
-                    }
+                    x509_cert::der::Tag::Utf8String => frag
+                        .value
+                        .decode_as::<x509_cert::der::asn1::Utf8StringRef>()
+                        .unwrap()
+                        .as_str(),
+                    x509_cert::der::Tag::PrintableString => frag
+                        .value
+                        .decode_as::<x509_cert::der::asn1::PrintableStringRef>()
+                        .unwrap()
+                        .as_str(),
                     _ => panic!("unknown tag"),
                 };
                 return Some(value);
