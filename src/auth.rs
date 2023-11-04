@@ -73,7 +73,7 @@ impl<'a> AccessToken<'a> {
         let secret_raw = base64ct::Base64UrlUnpadded::decode_vec(self.secret)
             .map_err(|_| crate::error::Error::Unauthorized(UNAUTHORIZED_TOKEN_B64))?;
         let given_secret_dgst =
-            digest::CtOutput::new(sha2::Sha384::new_with_prefix(&secret_raw).finalize());
+            digest::CtOutput::new(sha2::Sha384::new_with_prefix(secret_raw).finalize());
 
         if given_secret_dgst == expected_secret_dgst {
             Ok(())
@@ -94,7 +94,7 @@ mod test {
 
     #[test]
     fn test_new() {
-        let ah = AccessToken::new("testrole".into(), TEST_SECRET_B64.into());
+        let ah = AccessToken::new("testrole", TEST_SECRET_B64);
         assert_eq!(ah.binding_name, "testrole");
         assert_eq!(ah.secret, TEST_SECRET_B64);
         assert_eq!(

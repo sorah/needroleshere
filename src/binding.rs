@@ -28,9 +28,9 @@ fn validate_name(name: &str) -> Result<(), crate::error::Error> {
         ));
     }
 
-    let invalid = name.bytes().any(|c| {
-        !((b'a'..=b'z').contains(&c) || (b'A'..=b'Z').contains(&c) || c == b'@' || c == b'-')
-    });
+    let invalid = name
+        .bytes()
+        .any(|c| !(c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == b'@' || c == b'-'));
 
     if invalid {
         return Err(crate::error::Error::ConfigError(

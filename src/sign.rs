@@ -405,8 +405,9 @@ pub fn x509_sign_string(
     private_key: &crate::identity::PrivateKey,
     string_to_sign: &[u8],
 ) -> Result<String, crate::error::Error> {
-    use ecdsa::signature::RandomizedSigner as _;
-    use sha2::Digest as _;
+    use ecdsa::signature::RandomizedSigner;
+    use rsa::traits::SignatureScheme;
+    use sha2::Digest;
 
     let signature = match private_key {
         // RSA: go crypto/rsa.SignPKCS1v15
@@ -415,19 +416,17 @@ pub fn x509_sign_string(
         // Sign digest of sha256
         crate::identity::PrivateKey::Rsa(pkey) => {
             let digest_in = sha2::Sha256::digest(string_to_sign);
-            let padding = rsa::PaddingScheme::new_pkcs1v15_sign(Some(rsa::hash::Hash::SHA2_256));
-            pkey.sign_blinded(&mut rand::thread_rng(), padding, &digest_in)?
+            let padding = rsa::pkcs1v15::Pkcs1v15Sign::new::<sha2::Sha256>();
+            padding.sign(Some(&mut rand::thread_rng()), pkey, &digest_in)?
         }
         // ECDSA: Golang crypto/ecdsa.SignASN1. Always use SHA256 for hash function.
         // - While Golang uses randomness, we don't give rng here to align on the RustCrypto defaults
         crate::identity::PrivateKey::Ec(crate::identity::PrivateKeyEc::P256(pkey)) => {
             // SigningKey<P256> uses SHA256 so it can be performed straightforward.
             let signing_key = ecdsa::SigningKey::from(pkey);
-            signing_key
-                .try_sign_with_rng(&mut rand::thread_rng(), string_to_sign)?
-                .to_der()
-                .to_bytes()
-                .to_vec()
+            let signature: ecdsa::Signature<p256::NistP256> =
+                signing_key.try_sign_with_rng(&mut rand::thread_rng(), string_to_sign)?;
+            signature.to_der().to_bytes().to_vec()
         }
         crate::identity::PrivateKey::Ec(crate::identity::PrivateKeyEc::P384(pkey)) => {
             // both ecdsa and ring crate strictly bind SHA hash function having the same length to
@@ -542,7 +541,10 @@ mod test {
 
     fn testing_timestamp() -> chrono::DateTime<chrono::Utc> {
         use chrono::TimeZone as _;
-        chrono::Utc.ymd(2022, 8, 27).and_hms(1, 2, 3)
+        chrono::Utc
+            .with_ymd_and_hms(2022, 8, 27, 1, 2, 3)
+            .single()
+            .unwrap()
     }
 
     fn make_test_request() -> http::Request<bytes::Bytes> {
@@ -558,7 +560,7 @@ mod test {
         alg: &str,
         cert_b64: &str,
     ) -> (String, sha2::digest::Output<sha2::Sha256VarCore>) {
-        let creq = vec![
+        let creq = [
             "POST",
             "/api",
             "",
@@ -576,7 +578,7 @@ mod test {
 
         let scope = format!("20220827/{}/{}/aws4_request", TEST_REGION, TEST_SERVICE);
 
-        let sts = vec![alg, "20220827T010203Z", &scope, &hashed_creq].join("\n");
+        let sts = [alg, "20220827T010203Z", &scope, &hashed_creq].join("\n");
         let digest = sha2::Sha256::digest(sts);
 
         (scope, digest)

@@ -21,18 +21,16 @@ pub(crate) fn sign<C>(
     string_to_sign: &[u8],
 ) -> Result<ecdsa::Signature<C>, crate::error::Error>
 where
-    C: ecdsa::elliptic_curve::PrimeCurve
-        + ecdsa::elliptic_curve::ProjectiveArithmetic
-        + ecdsa::elliptic_curve::ScalarArithmetic
-        + ecdsa::hazmat::DigestPrimitive,
-    C::UInt: for<'a> From<&'a ecdsa::elliptic_curve::Scalar<C>>, // From<&'a Self>; satisfied by `ScalarArithmetic::Scalar: Into<Self::UInt>`
+    C: ecdsa::elliptic_curve::PrimeCurveArithmetic + ecdsa::hazmat::DigestPrimitive,
+    C::Uint: for<'a> From<&'a ecdsa::elliptic_curve::Scalar<C>>, // From<&'a Self>; satisfied by `ScalarArithmetic::Scalar: Into<Self::UInt>`
     C::Digest: ecdsa::signature::digest::Digest
         + ecdsa::signature::digest::core_api::BlockSizeUser
-        + ecdsa::signature::digest::FixedOutput<OutputSize = ecdsa::elliptic_curve::FieldSize<C>>
-        + ecdsa::signature::digest::FixedOutputReset,
+        + ecdsa::signature::digest::FixedOutput<
+            OutputSize = <C as elliptic_curve::Curve>::FieldBytesSize,
+        > + ecdsa::signature::digest::FixedOutputReset,
     ecdsa::elliptic_curve::Scalar<C>: ecdsa::elliptic_curve::ops::Invert<
             Output = ecdsa::elliptic_curve::subtle::CtOption<ecdsa::elliptic_curve::Scalar<C>>,
-        > + ecdsa::elliptic_curve::ops::Reduce<C::UInt>
+        > + ecdsa::elliptic_curve::ops::Reduce<C::Uint>
         + ecdsa::hazmat::SignPrimitive<C>,
     ecdsa::SignatureSize<C>: ecdsa::elliptic_curve::generic_array::ArrayLength<u8>,
 {
@@ -48,15 +46,13 @@ fn sign_inner<C, D>(
     digest: D,
 ) -> Result<ecdsa::Signature<C>, crate::error::Error>
 where
-    C: ecdsa::elliptic_curve::PrimeCurve
-        + ecdsa::elliptic_curve::ProjectiveArithmetic
-        + ecdsa::elliptic_curve::ScalarArithmetic
-        + ecdsa::hazmat::DigestPrimitive,
-    C::UInt: for<'a> From<&'a ecdsa::elliptic_curve::Scalar<C>>, // From<&'a Self>; satisfied by `ScalarArithmetic::Scalar: Into<Self::UInt>`
+    C: ecdsa::elliptic_curve::PrimeCurveArithmetic + ecdsa::hazmat::DigestPrimitive,
+    C::Uint: for<'a> From<&'a ecdsa::elliptic_curve::Scalar<C>>, // From<&'a Self>; satisfied by `ScalarArithmetic::Scalar: Into<Self::UInt>`
     C::Digest: ecdsa::signature::digest::Digest
         + ecdsa::signature::digest::core_api::BlockSizeUser
-        + ecdsa::signature::digest::FixedOutput<OutputSize = ecdsa::elliptic_curve::FieldSize<C>>
-        + ecdsa::signature::digest::FixedOutputReset,
+        + ecdsa::signature::digest::FixedOutput<
+            OutputSize = <C as elliptic_curve::Curve>::FieldBytesSize,
+        > + ecdsa::signature::digest::FixedOutputReset,
     D: ecdsa::signature::digest::Digest
         + ecdsa::signature::digest::core_api::BlockSizeUser
         + ecdsa::signature::digest::FixedOutput<
@@ -64,7 +60,7 @@ where
         > + ecdsa::signature::digest::FixedOutputReset,
     ecdsa::elliptic_curve::Scalar<C>: ecdsa::elliptic_curve::ops::Invert<
             Output = ecdsa::elliptic_curve::subtle::CtOption<ecdsa::elliptic_curve::Scalar<C>>,
-        > + ecdsa::elliptic_curve::ops::Reduce<C::UInt>
+        > + ecdsa::elliptic_curve::ops::Reduce<C::Uint>
         + ecdsa::hazmat::SignPrimitive<C>,
     ecdsa::SignatureSize<C>: ecdsa::elliptic_curve::generic_array::ArrayLength<u8>,
 {
@@ -80,10 +76,10 @@ where
 
     // try_sign_digest_rfc6979
     let src: [u8; 32] = digest.finalize_fixed().into(); // GenericArray
-    let prehash = C::prehash_to_field_bytes(&src)?;
+    let scalar = ecdsa::hazmat::bits2field::<C>(&src)?;
 
     Ok(secret_scalar
-        .try_sign_prehashed_rfc6979::<C::Digest>(prehash, &ad)?
+        .try_sign_prehashed_rfc6979::<C::Digest>(&scalar, &ad)?
         .0)
 
     // XXX: Add to FieldSize<C> fails in this function (why?) thus to_der() can't be done here

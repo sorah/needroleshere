@@ -38,7 +38,7 @@ impl Config {
     pub(crate) fn path_for_binding(&self, name: &str) -> std::path::PathBuf {
         self.config_dir()
             .join(SUBDIR_BINDINGS)
-            .join(&format!("{name}.json"))
+            .join(format!("{name}.json"))
     }
 
     pub(crate) fn path_for_env(&self, name: &str) -> std::path::PathBuf {

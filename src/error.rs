@@ -37,13 +37,7 @@ pub enum Error {
     RsaError(#[from] rsa::errors::Error),
 
     #[error(transparent)]
-    RsaPkcs1Error(#[from] rsa::pkcs1::Error),
-
-    #[error(transparent)]
     RsaPkcs8Error(#[from] rsa::pkcs8::Error),
-
-    #[error(transparent)]
-    RsaPkcs8SpkiError(#[from] rsa::pkcs8::spki::Error),
 
     #[error(transparent)]
     SpkiError(#[from] pkcs8::spki::Error),
