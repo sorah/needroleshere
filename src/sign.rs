@@ -560,7 +560,8 @@ mod test {
         alg: &str,
         cert_b64: &str,
     ) -> (String, sha2::digest::Output<sha2::Sha256VarCore>) {
-        let creq = ["POST",
+        let creq = [
+            "POST",
             "/api",
             "",
             "content-type:application/json",
@@ -570,7 +571,8 @@ mod test {
             &format!("x-amz-x509-chain:{}", CERT_SUBCA_B64.trim_end()),
             "",
             "content-type;host;x-amz-date;x-amz-x509;x-amz-x509-chain",
-            TEST_BODY_SHA256_HEX]
+            TEST_BODY_SHA256_HEX,
+        ]
         .join("\n");
         let hashed_creq = base16ct::lower::encode_string(&sha2::Sha256::digest(creq));
 

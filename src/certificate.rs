@@ -112,9 +112,7 @@ mod test {
         );
     }
 
-    fn extract_cn(
-        subject: &Vec<x509_cert::name::RelativeDistinguishedName>,
-    ) -> Option<&str> {
+    fn extract_cn(subject: &Vec<x509_cert::name::RelativeDistinguishedName>) -> Option<&str> {
         use x509_cert::der::Tagged as _;
 
         for name in subject {
