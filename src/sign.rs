@@ -417,7 +417,7 @@ pub fn x509_sign_string(
         crate::identity::PrivateKey::Rsa(pkey) => {
             let digest_in = sha2::Sha256::digest(string_to_sign);
             let padding = rsa::pkcs1v15::Pkcs1v15Sign::new::<sha2::Sha256>();
-            padding.sign(Some(&mut rand::thread_rng()), &pkey, &digest_in)?
+            padding.sign(Some(&mut rand::thread_rng()), pkey, &digest_in)?
         }
         // ECDSA: Golang crypto/ecdsa.SignASN1. Always use SHA256 for hash function.
         // - While Golang uses randomness, we don't give rng here to align on the RustCrypto defaults
@@ -560,8 +560,7 @@ mod test {
         alg: &str,
         cert_b64: &str,
     ) -> (String, sha2::digest::Output<sha2::Sha256VarCore>) {
-        let creq = vec![
-            "POST",
+        let creq = ["POST",
             "/api",
             "",
             "content-type:application/json",
@@ -571,14 +570,13 @@ mod test {
             &format!("x-amz-x509-chain:{}", CERT_SUBCA_B64.trim_end()),
             "",
             "content-type;host;x-amz-date;x-amz-x509;x-amz-x509-chain",
-            TEST_BODY_SHA256_HEX,
-        ]
+            TEST_BODY_SHA256_HEX]
         .join("\n");
         let hashed_creq = base16ct::lower::encode_string(&sha2::Sha256::digest(creq));
 
         let scope = format!("20220827/{}/{}/aws4_request", TEST_REGION, TEST_SERVICE);
 
-        let sts = vec![alg, "20220827T010203Z", &scope, &hashed_creq].join("\n");
+        let sts = [alg, "20220827T010203Z", &scope, &hashed_creq].join("\n");
         let digest = sha2::Sha256::digest(sts);
 
         (scope, digest)
