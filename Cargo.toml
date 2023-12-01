@@ -58,7 +58,7 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 url = "2.4.1"
 x509-cert = { version = "0.2.4", features = ["pem", "std"] }
-zeroize = { version = "1.6.0", features = ["derive", "std", "alloc"] }
+zeroize = { version = "1.7.0", features = ["derive", "std", "alloc"] }
 
 [dev-dependencies]
 hyper = "0.14.27"
