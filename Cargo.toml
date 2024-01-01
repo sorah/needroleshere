@@ -21,7 +21,7 @@ rustls = ["reqwest/rustls-tls-native-roots"]
 [dependencies]
 anyhow = "1.0.75"
 async-trait = "0.1.74"
-axum = "0.6.20"
+axum = "0.7.3"
 base16ct = { version = "0.2.0", features = ["alloc"]}
 base64ct = { version = "1.6.0", features = ["alloc"]}
 bytes = "1.5.0"
